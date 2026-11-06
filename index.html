@@ -132,6 +132,7 @@ button:disabled{opacity:.55;cursor:default}
 .pbar{width:120px;height:8px;background:var(--sunk);border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle}
 .pbar span{display:block;height:100%;border-radius:4px}
 .orc-in{width:100px;text-align:right}
+.orc-modo button{font-weight:700}
 tr.pl-sep td{background:var(--sunk);font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;padding:5px 10px}
 td.pct{font-family:var(--f-num);font-variant-numeric:tabular-nums;text-align:right}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -274,8 +275,7 @@ body.phone:not(.m-mode) .m-back{display:block}
 
   <nav class="tabs" aria-label="Secções">
     <a href="#financas" id="tab-financas">Finanças do mês</a>
-    <a href="#orcamentos" id="tab-orcamentos">Orçamentos</a>
-    <a href="#plano" id="tab-plano">Plano anual</a>
+    <a href="#orcamentos" id="tab-orcamentos">Orçamento</a>
     <a href="#poupanca" id="tab-poupanca">Poupança e objetivos</a>
     <a href="#investimentos" id="tab-investimentos">Investimentos</a>
   </nav>
@@ -392,6 +392,7 @@ body.phone:not(.m-mode) .m-back{display:block}
   <div class="view" id="v-orcamentos" hidden>
     <div class="block-head">
       <div class="btn-row">
+        <div class="pills orc-modo" role="group" aria-label="Vista"><button type="button" data-v="orcamentos" aria-pressed="false">Mês</button><button type="button" data-v="plano" aria-pressed="false">Ano</button></div>
         <div class="pills" id="orc-conta" role="group" aria-label="Conta"><button type="button" data-c="pessoal" aria-pressed="true">Conta pessoal</button><button type="button" data-c="conjunta" aria-pressed="false">Conta conjunta</button></div>
         <div class="monthpick"><span class="eyebrow">Mês</span><select id="orc-mes" aria-label="Escolher mês"></select></div>
       </div>
@@ -405,14 +406,15 @@ body.phone:not(.m-mode) .m-back{display:block}
     </div>
     <section class="block">
       <div class="block-head"><h2>Orçamento por categoria</h2>
-        <div class="btn-row"><button class="btn-ghost" type="button" id="orc-sug">Sugerir pela média de 3 meses</button><button class="btn" type="button" id="orc-save">Guardar orçamento</button></div>
+        <button class="btn-ghost" type="button" data-v="plano" onclick="location.hash='plano'">Editar no Ano</button><span id="orc-sug" hidden></span><span id="orc-save" hidden></span>
       </div>
       <p class="formmsg" id="orc-msg" role="status"></p>
+      <div class="empty" id="orc-empty" hidden>Ainda não há orçamento para <span id="orc-empty-ano"></span>. Define-o na vista <b>Ano</b>: “Preencher com a média do ano anterior”, ajusta e guarda.</div>
       <div class="tablewrap"><table>
         <thead><tr><th>Categoria</th><th class="r">Orçamento mensal</th><th class="r">Gasto (média 3 meses)</th><th class="r">Restante</th><th>Progresso</th><th class="r">No ano</th></tr></thead>
         <tbody id="t-orc"></tbody>
       </table></div>
-      <p class="note">O orçamento é mensal e igual para todos os meses. O gasto é a média dos 3 últimos meses completos até ao mês escolhido, e é com ela que se calcula o restante e o estado. "No ano" conta os meses completos em que ficaste dentro do valor e compara o gasto acumulado com o orçamento acumulado. Categorias sem orçamento não entram no cumprimento.</p>
+      <p class="note">Os valores vêm do orçamento do ano (vista Ano). O gasto é a média dos 3 últimos meses completos até ao mês escolhido, e é com ela que se calculam o restante e o estado. "No ano" conta os meses completos em que ficaste dentro do valor.</p>
     </section>
   </div>
 
@@ -421,6 +423,7 @@ body.phone:not(.m-mode) .m-back{display:block}
   <div class="view" id="v-plano" hidden>
     <div class="block-head">
       <div class="btn-row">
+        <div class="pills orc-modo" role="group" aria-label="Vista"><button type="button" data-v="orcamentos" aria-pressed="false">Mês</button><button type="button" data-v="plano" aria-pressed="false">Ano</button></div>
         <div class="pills" id="pl-conta" role="group" aria-label="Conta"><button type="button" data-c="pessoal" aria-pressed="true">Conta pessoal</button><button type="button" data-c="conjunta" aria-pressed="false">Conta conjunta</button></div>
         <div class="monthpick"><span class="eyebrow">Ano</span><select id="pl-ano" aria-label="Ano do plano"></select></div>
       </div>
@@ -437,7 +440,7 @@ body.phone:not(.m-mode) .m-back{display:block}
       <div class="chart" id="pl-chart"></div>
     </section>
     <section class="block">
-      <div class="block-head"><h2>Plano por categoria</h2>
+      <div class="block-head"><h2>Orçamento do ano por categoria</h2>
         <div class="btn-row"><button class="btn-ghost" type="button" id="pl-fill">Preencher com a média do ano anterior</button><button class="btn" type="button" id="pl-save">Guardar plano</button></div>
       </div>
       <p class="formmsg" id="pl-msg" role="status"></p>
@@ -445,7 +448,7 @@ body.phone:not(.m-mode) .m-back{display:block}
         <thead><tr><th>Linha</th><th class="r">Plano / mês</th><th class="r">Plano / ano</th><th class="r">Média ano anterior</th><th class="r">Real acumulado</th><th class="r">Plano acumulado</th><th class="r">Desvio</th><th class="r">Projeção ano</th><th>Estado</th></tr></thead>
         <tbody id="t-pl"></tbody>
       </table></div>
-      <p class="note">O plano é mensal por categoria; o anual é 12 vezes esse valor. O plano acumulado conta os meses completos do ano com extrato importado. A projeção soma o real até agora com a média mensal real nos meses que faltam. Quando existe plano para um ano, os Orçamentos desse ano passam a usar estes valores.</p>
+      <p class="note">O plano é mensal por categoria; o anual é 12 vezes esse valor. O plano acumulado conta os meses completos do ano com extrato importado. A projeção soma o real até agora com a média mensal real nos meses que faltam. A vista Mês usa estes valores para acompanhar cada mês.</p>
     </section>
   </div>
   <!-- ============ POUPANÇA ============ -->
@@ -639,8 +642,8 @@ body.phone:not(.m-mode) .m-back{display:block}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=14"></script>
-<script src="shell.js?v=14"></script>
-<script src="app.js?v=14"></script>
+<script src="firebase-config.js?v=15"></script>
+<script src="shell.js?v=15"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>

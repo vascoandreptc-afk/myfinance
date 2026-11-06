@@ -136,7 +136,8 @@ function setStatus(t){$("status").textContent=t;}
 /* ---------- routing ---------- */
 const VIEWS=["financas","orcamentos","plano","poupanca","investimentos"];
 function route(){const h=location.hash.slice(1);const v=VIEWS.includes(h)?h:"financas";
-  for(const x of VIEWS){$("v-"+x).hidden=x!==v;$("tab-"+x).setAttribute("aria-current",x===v?"page":"false");}}
+  for(const x of VIEWS){$("v-"+x).hidden=x!==v;const t=$("tab-"+x);if(t)t.setAttribute("aria-current",x===v||(x==="orcamentos"&&v==="plano")?"page":"false");}
+  for(const b of document.querySelectorAll(".orc-modo button"))b.setAttribute("aria-pressed",String(b.dataset.v===v));}
 window.addEventListener("hashchange",route);
 
 /* ================= FINANÇAS ================= */
@@ -521,19 +522,15 @@ function renderOrc(){
     const ratio=b>0?g/b:null;const col=ratio==null?"var(--muted)":ratio>1?"var(--neg)":ratio>0.85?"var(--warn)":"var(--pos)";
     const chip=b>0?(ratio>1?'<span class="chip miss">excedido</span>':ratio>0.85?'<span class="chip wait">perto do limite</span>':'<span class="chip ok">dentro</span>'):'<span class="chip na">sem orçamento</span>';
     const tr=document.createElement("tr");
-    tr.innerHTML='<td>'+esc(c)+'</td><td class="r"><input class="orc-in num" type="number" step="5" min="0" inputmode="decimal" aria-label="Orçamento de '+esc(c)+'" value="'+(b>0?b:"")+'" placeholder="—" '+(st.readonly?"disabled":"")+'></td>'+
+    tr.innerHTML='<td>'+esc(c)+'</td><td class="r num">'+(b>0?eur0.format(b):'<span class="muted">—</span>')+'</td>'+
       '<td class="r num">'+eur.format(g)+'</td><td class="r num '+(b>0?cls(b-g):"")+'">'+(b>0?eur.format(b-g):"—")+'</td>'+
       '<td><span class="pbar"><span style="width:'+(ratio==null?0:Math.min(100,ratio*100)).toFixed(0)+'%;background:'+col+'"></span></span> '+chip+'</td>'+
       '<td class="r num">'+(b>0&&ytd.length?inM+"/"+ytd.length+' meses<div class="note">'+eur0.format(yG)+' de '+eur0.format(b*ytd.length)+'</div>':'<span class="muted">—</span>')+'</td>';
     tb.appendChild(tr);
-    tr.querySelector("input").addEventListener("input",e=>{st.orcDraft={...(st.orcDraft||budgetFor(conta,orcAno))};const v=parseFloat(e.target.value);if(isFinite(v)&&v>0)st.orcDraft[c]=v;else delete st.orcDraft[c];$("orc-msg").textContent="Alterações por guardar.";});
   }
-  // add-category row for budgets on categories without spending
-  const missing=allCats().filter(c=>c.k==="despesa"&&!catsShown.includes(c.n));
-  if(missing.length&&!st.readonly){const tr=document.createElement("tr");tr.innerHTML='<td colspan="6"><select id="orc-add" aria-label="Adicionar categoria ao orçamento" style="width:auto"><option value="">+ Adicionar categoria…</option>'+missing.map(c=>'<option>'+esc(c.n)+'</option>').join("")+'</select></td>';tb.appendChild(tr);
-    tr.querySelector("select").addEventListener("change",e=>{if(!e.target.value)return;st.orcDraft={...(st.orcDraft||budgetFor(conta,orcAno)),[e.target.value]:50};$("orc-msg").textContent="Alterações por guardar.";renderOrc();});}
   const set=(id,v,sub,c)=>{$(id).textContent=v;$(id).className="big "+(c||"");$(id+"-sub").textContent=sub||" ";};
-  set("o-tot",totB?eur.format(totB):"—",totB?Object.keys(bud).length+" categorias":"Define valores na tabela");
+  set("o-tot",totB?eur.format(totB):"—",totB?Object.keys(bud).length+" categorias":"Define o orçamento de "+orcAno+" na vista Ano");
+  $("orc-empty").hidden=!!totB;$("orc-empty-ano").textContent=orcAno;
   const gShow=totB?gastoB:Object.values(avg).reduce((x,y)=>x+y,0);
   set("o-gasto",last3.length?eur.format(gShow):"—",last3.length?"média de "+last3.map(mShort).join(", "):"");
   set("o-rest",totB?eur.format(totB-gastoB):"—",exc?exc+" categoria"+(exc>1?"s":"")+" excedida"+(exc>1?"s":""):"nenhuma categoria excedida",totB?cls(totB-gastoB):"");
@@ -542,6 +539,8 @@ function renderOrc(){
 }
 $("orc-conta").addEventListener("click",e=>{const b=e.target.closest("button[data-c]");if(!b)return;st.orcConta=b.dataset.c;st.orcDraft=null;$("orc-msg").textContent="";
   for(const x of $("orc-conta").querySelectorAll("button"))x.setAttribute("aria-pressed",String(x===b));renderOrc();});
+document.addEventListener("click",e=>{const b=e.target.closest(".orc-modo button[data-v]");if(b){if(b.dataset.v==="plano"&&st.orcMes){st.plAno=st.orcMes.slice(0,4);st.plConta=st.orcConta;for(const x of $("pl-conta").querySelectorAll("button"))x.setAttribute("aria-pressed",String(x.dataset.c===st.plConta));renderPlano();}
+  if(b.dataset.v==="orcamentos"){st.orcConta=st.plConta;for(const x of $("orc-conta").querySelectorAll("button"))x.setAttribute("aria-pressed",String(x.dataset.c===st.orcConta));renderOrc();}location.hash=b.dataset.v;}});
 $("orc-mes").addEventListener("change",e=>{st.orcMes=e.target.value;renderOrc();});
 $("orc-sug").addEventListener("click",()=>{const conta=st.orcConta;const full=monthsOf(conta).filter(m=>!isPartial(m)).slice(-3);
   if(!full.length){$("orc-msg").textContent="Importa pelo menos um mês completo.";return;}
@@ -764,7 +763,7 @@ function renderPlano(){
   set("pl-proj",proj==null?"—":eur0.format(proj),proj!=null&&totPlanM?(proj<=totPlanM*12?"dentro do plano por ":"acima do plano por ")+eur0.format(Math.abs(totPlanM*12-proj)):"de despesas no ano",proj!=null&&totPlanM?cls(totPlanM*12-proj):"");
   const pp=+lin.poupanca||0;
   set("pl-poup",pp?eur0.format(pp*12):"—",pp?(n?eur0.format(R.poupado)+" poupados de "+eur0.format(pp*n)+" previstos":eur0.format(pp)+" por mês"):"Define a linha Poupança",pp&&n?cls(R.poupado-pp*n):"");
-  $("pl-note").textContent=planOf(ano,conta)?"Plano guardado"+(st.plDraft?" · alterações por guardar":""):(st.plDraft?"Plano por guardar":"Ainda sem plano para "+ano);
+  $("pl-note").textContent=planOf(ano,conta)?"Plano guardado"+(st.plDraft?" · alterações por guardar":""):(st.plDraft?"Plano por guardar":"Ainda sem orçamento para "+ano);
   // chart cumulative
   const W=640,Hh=210,pl=52,pb=26,pt=12;const months=[...Array(12)].map((_,i)=>ano+"-"+String(i+1).padStart(2,"0"));
   const realPts=[];let acc=0;for(const m of months){const s=statsFor(conta,m);if(!s)continue;acc+=s.despesas;realPts.push({i:+m.slice(5)-1,v:acc,m});}
@@ -789,7 +788,7 @@ $("pl-fill").addEventListener("click",()=>{const conta=st.plConta,ano=st.plAno;c
   st.plDraft=d;$("pl-msg").textContent="Preenchido com a média de "+n+" meses de "+(+ano-1)+", arredondada a 5 €. Ajusta o que quiseres mudar e guarda.";renderPlano();});
 $("pl-save").addEventListener("click",async()=>{if(!st.db)return;const ano=st.plAno,conta=st.plConta;const d=st.plDraft||planOf(ano,conta)||{cats:{},linhas:{}};
   const doc={...(st.planos[ano]||{}),[conta]:{cats:d.cats||{},linhas:d.linhas||{}}};
-  try{await st.db.collection("planos").doc(ano).set(doc);st.plDraft=null;$("pl-msg").textContent="Plano de "+ano+" guardado.";}catch(e){$("pl-msg").textContent="Não foi possível guardar o plano.";}});
+  try{await st.db.collection("planos").doc(ano).set(doc);st.plDraft=null;$("pl-msg").textContent="Orçamento de "+ano+" guardado.";}catch(e){$("pl-msg").textContent="Não foi possível guardar o plano.";}});
 
 /* ================= IMPORTADORES XTB E CRIPTO ================= */
 const PLAN_DEFAULT_SUB={"52137503":"ETF Agressivo","52148668":"ETF Core"};
@@ -965,7 +964,7 @@ function renderMobile(){
       const proj=isPartial(m)?s.despesas/lastDay*dim:null;const ratio=totB?gB/totB:null;
       h+='<div class="m-card m-hero"><div class="eyebrow">Despesas do mês</div><div class="m-big">'+eur.format(s.despesas)+'</div>';
       if(totB){h+='<div class="m-sub">'+eur0.format(gB)+' de '+eur0.format(totB)+' orçamentados</div>'+mBar(gB,totB,stateCol(ratio))+'<div class="m-sub '+cls(totB-gB)+'">'+(gB<=totB?"Ainda podes gastar "+eur0.format(totB-gB):"Excedeste o orçamento em "+eur0.format(gB-totB))+'</div>';}
-      else h+='<div class="m-sub">Sem orçamento definido para '+ano+'. Define-o no Plano anual (versão completa).</div>';
+      else h+='<div class="m-sub">Sem orçamento definido para '+ano+'. Define-o no Mac, em Orçamento → Ano.</div>';
       if(proj!=null)h+='<div class="m-sub">Ao ritmo atual terminas o mês com cerca de <b>'+eur0.format(proj)+'</b>'+(totB?' ('+(proj<=totB?"dentro":"acima")+' do orçamento)':'')+'.</div>';
       h+='</div>';
       const alerts=Object.keys(bud).filter(c=>+bud[c]>0).map(c=>({c,b:+bud[c],g:s.cats[c]||0})).filter(x=>x.g/x.b>0.85).sort((a,b)=>b.g/b.b-a.g/a.b);
