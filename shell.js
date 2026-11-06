@@ -10,7 +10,9 @@
   if(!configured){gate.hidden=false;form.hidden=true;msg.textContent="A app ainda não está ligada ao Firebase. Preenche o ficheiro firebase-config.js (ver o guia).";return;}
   firebase.initializeApp(cfg);
   const auth=firebase.auth();const db=firebase.firestore();
-  db.settings({ignoreUndefinedProperties:true,experimentalAutoDetectLongPolling:true,merge:true});
+  let lp=false;try{lp=localStorage.getItem("mf-lp")==="1";}catch(e){}
+  db.settings(lp?{ignoreUndefinedProperties:true,experimentalForceLongPolling:true,merge:true}:{ignoreUndefinedProperties:true,experimentalAutoDetectLongPolling:true,merge:true});
+  window.__mfLongPolling=lp;
   db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
   let started=false;
   auth.onAuthStateChanged(u=>{
