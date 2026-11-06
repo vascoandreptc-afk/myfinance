@@ -932,6 +932,7 @@ function renderMobile(){
   const ms=mMonths();if(!st.m.mes||!ms.includes(st.m.mes)){const f=ms.filter(m=>!isPartial(m));st.m.mes=f[f.length-1]||ms[ms.length-1]||null;}
   const m=st.m.mes,ano=(m||curMonth()).slice(0,4);let h="";
   if(tab==="resumo"||tab==="orcamento"){
+    {const si=syncInfo();if(si&&si.alerta&&tab==="resumo")h+='<div class="m-card" style="border-color:var(--neg)"><p class="note neg">'+esc(si.txt)+'</p></div>';}
     h+=scopePills(true)+monthNav(ms);
     const s=m?scopeStats(st.m.scope,m):null;const bud=scopeBudget(st.m.scope,ano);const totB=Object.values(bud).reduce((a,b)=>a+(+b||0),0);
     if(!s){h+='<div class="m-card"><p class="note">Ainda não há extratos para esta conta. Importa-os na versão completa, no Mac.</p></div>';}
@@ -984,6 +985,7 @@ function renderMobile(){
     h+='<div class="m-card"><div class="eyebrow">Conta</div><div class="m-row"><span>'+esc(($("who")||{}).textContent||"")+'</span><button type="button" class="btn-link" data-act="sair">Sair</button></div></div>'+
       '<div class="m-card"><div class="eyebrow">Versão completa</div><p class="note">Tabelas, importação de extratos, regras, categorias, plano anual e rentabilidade detalhada. Fica mais confortável no Mac.</p><button type="button" class="btn" data-act="full">Abrir versão completa</button></div>'+
       '<div class="m-card"><div class="eyebrow">Cópia de segurança</div><button type="button" class="btn-ghost" data-act="bk">Descarregar cópia</button><p class="note" id="m-bk"></p></div>'+
+      (syncInfo()?'<div class="m-card"><div class="eyebrow">Sincronização com o banco</div><p class="note'+(syncInfo().alerta?' neg':'')+'">'+esc(syncInfo().txt)+'</p>'+(syncInfo().alerta?'<p class="note">Para renovar, pede ao Claude ou corre "1 · Autorizar Revolut" no repositório myfinance-sync.</p>':'')+'</div>':'')+
       '<p class="note m-pad">'+esc($("status").textContent)+'</p>';
   }
   el.innerHTML=h;
@@ -1003,6 +1005,13 @@ document.addEventListener("change",async e=>{const sel=e.target.closest("#m-app 
   try{await saveMonth(did,doc.movimentos.map(r=>r.id===id?{...r,categoria:sel.value,manual:true}:r));}catch(err){setStatus("Não foi possível guardar a categoria.");}});
 $("m-back").addEventListener("click",()=>setFullPref(false));
 applyMode();
+
+/* ---------- sincronização Revolut ---------- */
+function syncInfo(){const s=st.sync;if(!s)return null;
+  const quando=s.ultimaExec?new Date(s.ultimaExec):null;const dias=s.valido_ate?Math.floor((new Date(s.valido_ate)-Date.now())/864e5):null;
+  const txt=s.erro?s.erro:("Revolut sincronizada"+(quando?" "+quando.toLocaleDateString("pt-PT",{day:"2-digit",month:"short"})+" às "+quando.toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}):"")+(dias!=null?" · autorização válida por "+dias+" dias":""));
+  const alerta=!!s.erro||(dias!=null&&dias<=14);return {txt,alerta,dias,erro:s.erro};}
+function renderSync(){const i=syncInfo();const el=$("sync-line");if(el){el.hidden=!i;if(i){el.textContent=i.txt;el.className="note "+(i.alerta?"neg":"");}}scheduleM&&scheduleM();}
 
 /* ---------- boot ---------- */
 function render(){renderCats();renderFin();renderOrc();renderPlano();renderPoup();renderInv();renderRent();}
@@ -1024,6 +1033,7 @@ $("l-data").value=todayStr();$("r-data").value=todayStr();route();render();
   db.doc("config/orcamentos").onSnapshot(d=>{st.orc=d.exists?d.data():null;done("o",d);renderOrc();},onErr);
   db.doc("config/objetivos").onSnapshot(d=>{st.goals=d.exists?d.data():null;done("g",d);renderPoup();},onErr);
   db.doc("historico/carteira").onSnapshot(d=>{st.hist=d.exists?d.data():null;done("h",d);renderRent();},onErr);
+  db.doc("sync/revolut").onSnapshot(d=>{st.sync=d.exists?d.data():null;renderSync();},()=>{});
   db.doc("config/regras").onSnapshot(d=>{st.regras=d.exists&&Array.isArray(d.data().lista)?d.data().lista:null;done("c",d);renderFin();},onErr);
   try{const u=await c.use("user");if(u&&typeof u.isOwner==="function"&&(await u.isOwner())===false)setReadonly();}catch(e){}
 })();

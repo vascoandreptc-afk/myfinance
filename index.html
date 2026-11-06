@@ -329,7 +329,9 @@ body.phone:not(.m-mode) .m-back{display:block}
             <div class="btn-row"><button class="btn" type="button" id="imp-go">Importar</button><button class="btn-ghost" type="button" id="imp-cancel">Cancelar</button></div>
           </div>
           <p class="formmsg" id="imp-msg" role="status"></p>
-          <p class="note">Dica: exporta os extratos nos primeiros 5 dias do mês. Os valores da XTB e da cripto ficam registados como o fecho do mês anterior.</p>
+          <p class="note" id="sync-line" hidden></p>
+          <p class="note">A Revolut (pessoal e conjunta) sincroniza sozinha de 4 em 4 horas; o PDF só é preciso se a sincronização falhar. Para a XTB e a cripto, exporta nos primeiros 5 dias do mês.</p>
+          <p class="note" hidden>Dica: exporta os extratos nos primeiros 5 dias do mês. Os valores da XTB e da cripto ficam registados como o fecho do mês anterior.</p>
         </section>
 
         <section class="block">
@@ -627,8 +629,8 @@ body.phone:not(.m-mode) .m-back{display:block}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=2"></script>
-<script src="shell.js?v=2"></script>
-<script src="app.js?v=2"></script>
+<script src="firebase-config.js?v=3"></script>
+<script src="shell.js?v=3"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>
