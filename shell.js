@@ -10,7 +10,7 @@
   if(!configured){gate.hidden=false;form.hidden=true;msg.textContent="A app ainda não está ligada ao Firebase. Preenche o ficheiro firebase-config.js (ver o guia).";return;}
   firebase.initializeApp(cfg);
   const auth=firebase.auth();const db=firebase.firestore();
-  db.settings({ignoreUndefinedProperties:true,merge:true});
+  db.settings({ignoreUndefinedProperties:true,experimentalAutoDetectLongPolling:true,merge:true});
   db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
   let started=false;
   auth.onAuthStateChanged(u=>{

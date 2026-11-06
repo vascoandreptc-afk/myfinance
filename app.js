@@ -1118,7 +1118,7 @@ $("l-data").value=todayStr();$("r-data").value=todayStr();route();render();
   const c=window.claude;const db=c&&c.use?await c.use("db"):null;
   if(!db){setStatus("Inicia sessão para ver os teus registos.");for(const f of document.querySelectorAll("form button,#imp-file"))f.disabled=true;return;}
   st.db=db;const need=["l","a","r","m","c","o","g","h","k","p"];
-  const timer=setTimeout(()=>setStatus("Não foi possível chegar aos registos. Verifica a ligação."),10000);
+  const timer=setTimeout(()=>setStatus("Sem ligação ao servidor: estás a ver os dados guardados neste dispositivo. Se a internet estiver a funcionar, um bloqueador de anúncios, VPN ou extensão pode estar a bloquear firestore.googleapis.com."),10000);
   const done=(k,s)=>{if(!s.metadata.fromCache)st.loaded[k]=true;if(need.every(x=>st.loaded[x])){clearTimeout(timer);setStatus("Atualizado às "+new Date().toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}));}};
   const onErr=e=>{clearTimeout(timer);setStatus(e&&e.code==="revoked"?"O acesso aos registos terminou.":"Não foi possível carregar os registos.");};
   db.collection("lotes").onSnapshot(s=>{st.lotes=s.docs.map(d=>({id:d.id,...d.data()}));done("l",s);renderInv();},onErr);
