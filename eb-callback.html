@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>MyFinance · Autorização bancária</title>
+<style>
+:root{--bg:#f4f6f9;--surface:#fff;--line:#d6dce6;--fg:#16202e;--muted:#5b6778;--accent:#1f4fd1;--pos:#0f7a4a;--neg:#b42a2a}
+@media (prefers-color-scheme:dark){:root{--bg:#0e131b;--surface:#151c27;--line:#2a3546;--fg:#e6ebf3;--muted:#97a3b6;--accent:#7ea2ff;--pos:#4fd197;--neg:#ff8a80;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--fg);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,sans-serif;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.card{width:100%;max-width:460px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:14px}
+h1{margin:0;font-size:1.3rem}
+p{margin:0;color:var(--muted)}
+code{display:block;font:500 .95rem ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;word-break:break-all;color:var(--fg);user-select:all}
+button{font:inherit;font-weight:600;border:none;border-radius:8px;padding:11px 14px;background:var(--accent);color:#fff;cursor:pointer}
+.ok{color:var(--pos)}.err{color:var(--neg)}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1 id="t">Autorização bancária</h1>
+  <p id="p">A ler a resposta do banco…</p>
+  <code id="c" hidden></code>
+  <button type="button" id="b" hidden>Copiar código</button>
+  <p id="m" role="status"></p>
+</div>
+<script>
+const q=new URLSearchParams(location.search);const code=q.get("code"),err=q.get("error")||q.get("error_description");
+const $=id=>document.getElementById(id);
+if(code){$("t").textContent="Autorização concluída";$("t").className="ok";
+  $("p").textContent="Copia este código e cola-o no passo “Concluir autorização” do GitHub (campo code). É válido durante poucos minutos e só funciona uma vez.";
+  $("c").textContent=code;$("c").hidden=false;$("b").hidden=false;
+  $("b").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(code);$("m").textContent="Código copiado.";}catch(e){const r=document.createRange();r.selectNodeContents($("c"));const s=getSelection();s.removeAllRanges();s.addRange(r);$("m").textContent="Código selecionado: copia com ⌘C.";}});
+}else if(err){$("t").textContent="A autorização não foi concluída";$("t").className="err";$("p").textContent="O banco respondeu: "+err+". Volta a iniciar a autorização no GitHub.";}
+else{$("p").textContent="Esta página recebe a resposta do banco depois de autorizares o acesso à MyFinance. Abre-a através do link de autorização.";}
+</script>
+</body>
+</html>
