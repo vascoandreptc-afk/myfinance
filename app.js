@@ -944,6 +944,9 @@ function mInvestSeries(){const H=histGroups();const ids=GROUPS.map(g=>g[0]).filt
       if(!started[id]){if(e.v!=null){started[id]=true;accA+=e.v;lastV[id]=e.v;}continue;}
       accA+=+e.a||0;if(e.v!=null)lastV[id]=e.v;}
     let v=0;for(const id in lastV)v+=lastV[id];pts.push({m,v:r2(v),a:r2(accA)});}
+  // o último ponto é sempre o valor atual de toda a carteira (igual ao "Valor atual" dos Investimentos)
+  try{const tot=r2(compute().reduce((x,y)=>x+y.val,0));const cm=curMonth();const lp=pts[pts.length-1];
+    if(tot>0){if(lp&&lp.m===cm)lp.v=tot;else if(lp)pts.push({m:cm,v:tot,a:lp.a});else pts.push({m:cm,v:tot,a:tot});}}catch(e){}
   return pts;}
 
 function renderMobile(){
