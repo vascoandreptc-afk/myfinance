@@ -1,6 +1,6 @@
 // MyFinance: guarda a app no telemóvel para abrir depressa e sem rede.
-const CACHE = "myfinance-v4";
-const SHELL = ["./", "index.html", "app.js?v=4", "shell.js?v=4", "firebase-config.js?v=4", "manifest.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png"];
+const CACHE = "myfinance-v5";
+const SHELL = ["./", "index.html", "app.js?v=5", "shell.js?v=5", "firebase-config.js?v=5", "manifest.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png"];
 const CDN = ["www.gstatic.com", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

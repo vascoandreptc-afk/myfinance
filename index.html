@@ -208,6 +208,9 @@ body.phone:not(.m-mode) .m-back{display:block}
 .m-inv{display:grid;grid-template-columns:minmax(0,1fr) auto;row-gap:2px}
 .m-sub2{grid-column:1/-1;font-size:.78rem;color:var(--muted)}
 .m-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px}
+.m-inv{cursor:pointer;border-radius:10px;padding-inline:8px;margin-inline:-8px;width:calc(100% + 16px)}
+.m-inv.on{background:var(--accent-soft)}
+.m-inv.on>span:first-child{color:var(--accent);font-weight:600}
 .m-chart{width:100%;height:auto;display:block}
 .m-chart text{fill:var(--muted);font-size:10px;font-family:var(--f-body)}
 .m-key{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin:0 5px 0 2px}
@@ -630,8 +633,8 @@ body.phone:not(.m-mode) .m-back{display:block}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=4"></script>
-<script src="shell.js?v=4"></script>
-<script src="app.js?v=4"></script>
+<script src="firebase-config.js?v=5"></script>
+<script src="shell.js?v=5"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

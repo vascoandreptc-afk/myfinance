@@ -926,7 +926,9 @@ function tinyBars(rows,goal){if(!rows.length)return "";const W=340,H=130,pl=4,pb
 function tinyLines(pts){if(pts.length<2)return "";const W=340,H=130,pt=10,pb=18;const all=pts.flatMap(p=>[p.v,p.a]);const lo=Math.min(...all)*0.95,hi=Math.max(...all)*1.02;const y=v=>pt+(H-pt-pb)*(1-(v-lo)/(hi-lo||1));const x=i=>6+(W-12)*i/(pts.length-1);
   const path=k=>pts.map((p,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+y(p[k]).toFixed(1)).join("");
   let s='<svg viewBox="0 0 '+W+' '+H+'" class="m-chart" role="img"><path d="'+path("v")+'L'+x(pts.length-1)+" "+(H-pb)+"L"+x(0)+" "+(H-pb)+'Z" fill="var(--accent-soft)"/><path d="'+path("a")+'" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 4"/><path d="'+path("v")+'" fill="none" stroke="var(--accent)" stroke-width="2.5"/>';
-  pts.forEach((p,i)=>{if(i%2===0||i===pts.length-1)s+='<text x="'+x(i)+'" y="'+(H-4)+'" text-anchor="middle">'+MES[+p.m.slice(5)-1].slice(0,3)+'</text>';});return s+'</svg>';}
+  pts.forEach((p,i)=>{const last=i===pts.length-1;if((i%2===0&&i<pts.length-2)||last||pts.length<=4)s+='<text x="'+x(i)+'" y="'+(H-4)+'" text-anchor="'+(i===0?"start":last?"end":"middle")+'">'+MES[+p.m.slice(5)-1].slice(0,3)+'</text>';});return s+'</svg>';}
+function mGroupSeries(id){const ser=histGroups()[id]||{};const ms=Object.keys(ser).sort().filter(m=>ser[m].v!=null);const pts=[];let base=null,acc=0,last=null;
+  for(const m of Object.keys(ser).sort()){if(last!==null)acc+=+ser[m].a||0;if(ser[m].v==null)continue;if(base===null)base=ser[m].v;pts.push({m,v:ser[m].v,a:base+acc});last=m;}return pts;}
 function mInvestSeries(){const H=histGroups();const allM=[...new Set(Object.values(H).flatMap(s=>Object.keys(s)))].sort();
   const full=GROUPS.map(g=>g[0]).filter(id=>H[id]&&allM.every(m=>H[id][m]&&H[id][m].v!=null));const pts=[];let base=null,acc=0;
   for(const m of allM){let v=0;for(const id of full)v+=H[id][m].v;if(base===null)base=v;else for(const id of full)acc+=+H[id][m].a||0;pts.push({m,v,a:base+acc});}return pts;}
@@ -980,11 +982,18 @@ function renderMobile(){
     h+='</div><div class="m-card"><div class="eyebrow">Por mês</div>'+tinyBars(rows.map((r,i)=>({l:MES[+r.m.slice(5)-1].slice(0,3),v:r.poupado,hl:i===rows.length-1,t:mesLabel(r.m)+": "+eur.format(r.poupado)})),g.mensal)+'</div>';
     h+='<div class="m-card m-list">'+rows.slice().reverse().map(r=>'<div class="m-row"><span>'+mesLabel(r.m)+'</span><span class="num">'+eur0.format(r.poupado)+' <span class="muted">'+(r.entradas>0?pct.format(r.poupado/r.entradas):"")+'</span></span></div>').join("")+'</div>';
   } else if(tab==="investimentos"){
-    h+='<div class="m-card m-hero"><div class="eyebrow">Carteira</div><div class="m-big">'+esc($("s-valor").textContent)+'</div><div class="m-sub">Investido '+esc($("s-inv").textContent)+' · resultado <span class="'+($("s-res").className.includes("neg")?"neg":"pos")+'">'+esc($("s-res").textContent)+'</span></div>'+tinyLines(mInvestSeries())+'<div class="m-sub"><span class="m-key" style="background:var(--accent)"></span>valor <span class="m-key dash"></span>total aportado</div></div>';
-    const H=histGroups();h+='<div class="m-card m-list">';
-    for(const [id,nome,cat] of GROUPS){const ser=H[id];if(!ser)continue;const ms2=Object.keys(ser).sort();const R=seriesReturns(ser);const last=ser[ms2[ms2.length-1]];
-      const lf=ms2.filter(x=>R.mensal[x]&&R.mensal[x].r!=null&&!R.mensal[x].gap&&!ser[x].parcial).pop();
-      h+='<div class="m-row m-inv"><span><i class="m-dot" style="background:'+INV_COLOR[cat]+'"></i>'+esc(nome)+'</span><span class="num">'+eur0.format(last.v||0)+'</span><span class="m-sub2"><span class="'+cls(R.acum||0)+'">'+pctOrDash(R.acum)+' no ano</span>'+(lf?' · <span class="'+cls(R.mensal[lf].r)+'">'+(R.mensal[lf].r>0?"+":"")+pct.format(R.mensal[lf].r)+' em '+MES[+lf.slice(5)-1].slice(0,3)+'</span>':'')+'</span></div>';}
+    const H=histGroups();const selG=st.m.inv&&GROUPS.find(g=>g[0]===st.m.inv&&H[g[0]])?GROUPS.find(g=>g[0]===st.m.inv):null;
+    if(selG){const ser=H[selG[0]];const ms2=Object.keys(ser).sort();const R=seriesReturns(ser);const lastM=ms2.filter(m=>ser[m].v!=null).pop();const v=lastM?ser[lastM].v:0;
+      const cat=selG[2],tk=selG[3];const lots=st.lotes.filter(l=>l.categoria===cat&&(!tk||l.ticker===tk));const inv=lots.reduce((a,l)=>a+(+l.investido||0),0);
+      const AKs=Object.values(st.ativos).filter(a=>(a.categoria||"Cripto")===cat&&(!tk||a.ticker===tk));const cur=AKs.length?AKs.reduce((a,x)=>a+(+x.valorAtual||0),0):v;
+      const pts=mGroupSeries(selG[0]);
+      h+='<div class="m-card m-hero"><div class="eyebrow"><i class="m-dot" style="background:'+INV_COLOR[cat]+'"></i>'+esc(selG[1])+'</div><div class="m-big">'+eur.format(cur)+'</div><div class="m-sub">Investido '+eur.format(inv)+' · resultado <span class="'+cls(cur-inv)+'">'+signed(cur-inv)+'</span> · '+pctOrDash(R.acum)+' no ano</div>'+
+        (pts.length>1?tinyLines(pts):'<p class="note">Ainda há poucos fechos mensais para desenhar a evolução deste investimento.</p>')+'<div class="m-sub"><span class="m-key" style="background:var(--accent)"></span>valor <span class="m-key dash"></span>total aportado · toca outra vez para ver o total</div></div>';}
+    else h+='<div class="m-card m-hero"><div class="eyebrow">Carteira</div><div class="m-big">'+esc($("s-valor").textContent)+'</div><div class="m-sub">Investido '+esc($("s-inv").textContent)+' · resultado <span class="'+($("s-res").className.includes("neg")?"neg":"pos")+'">'+esc($("s-res").textContent)+'</span></div>'+tinyLines(mInvestSeries())+'<div class="m-sub"><span class="m-key" style="background:var(--accent)"></span>valor <span class="m-key dash"></span>total aportado · toca num investimento para o ver sozinho</div></div>';
+    h+='<div class="m-card m-list">';
+    for(const [id,nome,cat] of GROUPS){const ser=H[id];if(!ser)continue;const ms2=Object.keys(ser).sort();const R=seriesReturns(ser);const lastM=ms2.filter(m=>ser[m].v!=null).pop();const last=lastM?ser[lastM]:{v:0};
+      const lf=ms2.filter(x=>R.mensal[x]&&R.mensal[x].r!=null&&!R.mensal[x].gap&&!ser[x].parcial).pop();const on=st.m.inv===id;
+      h+='<button type="button" class="m-row m-inv'+(on?' on':'')+'" data-inv="'+esc(id)+'" aria-pressed="'+on+'"><span><i class="m-dot" style="background:'+INV_COLOR[cat]+'"></i>'+esc(nome)+'</span><span class="num">'+eur0.format(last.v||0)+'</span><span class="m-sub2"><span class="'+cls(R.acum||0)+'">'+pctOrDash(R.acum)+' no ano</span>'+(lf?' · <span class="'+cls(R.mensal[lf].r)+'">'+(R.mensal[lf].r>0?"+":"")+pct.format(R.mensal[lf].r)+' em '+MES[+lf.slice(5)-1].slice(0,3)+'</span>':' · <span class="muted">sem fechos mensais suficientes</span>')+'</span></button>';}
     h+='</div><div class="m-card"><div class="eyebrow">Cripto e isenção de 365 dias</div><div class="m-split"><div><div class="m-sub">Já isento</div><div class="m-mid pos">'+esc($("x-isento").textContent)+'</div></div><div><div class="m-sub">Próxima isenção</div><div class="m-mid">'+esc($("x-prox").textContent)+'</div><div class="m-sub">'+esc($("x-prox-sub").textContent)+'</div></div></div></div>';
   } else {
     h+='<div class="m-card"><div class="eyebrow">Conta</div><div class="m-row"><span>'+esc(($("who")||{}).textContent||"")+'</span><button type="button" class="btn-link" data-act="sair">Sair</button></div></div>'+
@@ -997,6 +1006,7 @@ function renderMobile(){
 }
 document.addEventListener("click",async e=>{const root=e.target.closest("#m-app");if(!root)return;
   const t=e.target.closest("[data-t]");if(t){st.m.tab=t.dataset.t;st.m.open=null;renderMobile();window.scrollTo(0,0);return;}
+  const iv=e.target.closest("[data-inv]");if(iv){st.m.inv=st.m.inv===iv.dataset.inv?null:iv.dataset.inv;renderMobile();const c=document.querySelector("#m-content .m-hero");if(c)c.scrollIntoView({behavior:"smooth",block:"start"});return;}
   const tb=e.target.closest("[data-tab]");if(tb){st.m.tab=tb.dataset.tab;renderMobile();window.scrollTo(0,0);return;}
   const sc=e.target.closest("[data-sc]");if(sc){st.m.scope=sc.dataset.sc;st.m.open=null;renderMobile();return;}
   const mv=e.target.closest("[data-mv]");if(mv){const ms=mMonths();const i=ms.indexOf(st.m.mes)+(+mv.dataset.mv);if(ms[i]){st.m.mes=ms[i];st.m.open=null;renderMobile();}return;}
