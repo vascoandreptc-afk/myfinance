@@ -1084,21 +1084,25 @@ async function parseOptimize(lib,buf){
   return {tipo:"optimize",fim,titular,fundos};
 }
 async function importOptimize(r,msg){
-  const mes=r.fim.slice(0,7);const H=JSON.parse(JSON.stringify(histGroups()));let n=0;
+  const mes=r.fim.slice(0,7);const H=JSON.parse(JSON.stringify(histGroups()));
   for(const f of r.fundos){const custoTot=r2(f.qty*f.custo);
     const AK=ativosByKey()[akey("PPR",f.ticker)];const aid=AK?AK.id:"ppr~"+f.ticker;
-    const atual=AK&&AK.doc.atualizado&&AK.doc.atualizado>r.fim;
-    if(!atual){await st.db.collection("ativos").doc(aid).set({ticker:f.ticker,categoria:"PPR",nome:f.nome,titular:r.titular||"",valorAtual:r2(f.valor),unidades:f.qty,atualizado:r.fim});n++;}
-    const exL=st.lotes.find(l=>l.id==="opt-"+f.ticker);
-    if(!exL||!exL.ate||exL.ate<=r.fim)await st.db.collection("lotes").doc("opt-"+f.ticker).set({ate:r.fim,data:null,ticker:f.ticker,categoria:"PPR",plataforma:"Optimize",investido:custoTot,quantidade:f.qty,nota:"Total entregue (custo médio "+f.custo.toFixed(4)+" €/UP)"+(r.titular?" · "+r.titular:""),origem:"optimize"});n++;
-    const ser=H[f.ticker]=H[f.ticker]||{};const prev=Object.keys(ser).filter(m=>m<mes&&ser[m].c!=null).sort().pop();
-    ser[mes]={...(ser[mes]||{}),v:r2(f.valor),c:custoTot};delete ser[mes].est;delete ser[mes].parcial;
-    // recalcula as entregas de cada mês pela diferença do custo total (funciona em qualquer ordem de importação)
-    let pc=null;for(const m of Object.keys(ser).sort()){if(ser[m].c==null)continue;if(pc!=null)ser[m].a=r2(ser[m].c-pc);else delete ser[m].a;pc=ser[m].c;}}
+    if(!(AK&&AK.doc.atualizado&&AK.doc.atualizado>r.fim))await st.db.collection("ativos").doc(aid).set({ticker:f.ticker,categoria:"PPR",nome:f.nome,titular:r.titular||"",valorAtual:r2(f.valor),unidades:f.qty,atualizado:r.fim});
+    const ser=H[f.ticker]=H[f.ticker]||{};ser[mes]={...(ser[mes]||{}),v:r2(f.valor),c:custoTot};delete ser[mes].est;delete ser[mes].parcial;
+    await pprRebuild(f.ticker,ser,r.titular);}
   await st.db.collection("historico").doc("carteira").set({...(st.hist||{}),grupos:H});
   msg.textContent="PPR importado: "+r.fundos.map(f=>f.nome+" "+eur.format(f.valor)).join(" · ")+" (fecho de "+mesLabel(mes)+").";
 }
-
+// entregas de cada mês = diferença do custo total; um lote por mês com entrega (funciona em qualquer ordem de importação)
+async function pprRebuild(ticker,ser,titular){
+  let pc=null;const lots={};
+  for(const m of Object.keys(ser).sort()){if(ser[m].c==null)continue;
+    if(pc!=null)ser[m].a=r2(ser[m].c-pc);else delete ser[m].a;
+    const ent=pc==null?ser[m].c:ser[m].c-pc;if(ent>0.004)lots["opt-"+ticker+"-"+m]={data:m+"-28",ticker,categoria:"PPR",plataforma:"Optimize",investido:r2(ent),quantidade:null,nota:(pc==null?"Primeira entrega":"Entrega")+" · "+mesLabel(m)+(titular?" · "+titular:""),origem:"optimize"};
+    pc=ser[m].c;}
+  for(const l of st.lotes)if(l.ticker===ticker&&l.origem==="optimize"&&!lots[l.id])await st.db.collection("lotes").doc(l.id).delete();
+  for(const id in lots)await st.db.collection("lotes").doc(id).set(lots[id]);
+}
 /* ---------- sincronização Revolut ---------- */
 function syncInfo(){const s=st.sync;if(!s)return null;
   const quando=s.ultimaExec?new Date(s.ultimaExec):null;const dias=s.valido_ate?Math.floor((new Date(s.valido_ate)-Date.now())/864e5):null;
