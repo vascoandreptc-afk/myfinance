@@ -11,7 +11,8 @@
   firebase.initializeApp(cfg);
   const auth=firebase.auth();const db=firebase.firestore();
   let lp=false;try{lp=localStorage.getItem("mf-lp")==="1";}catch(e){}
-  db.settings(lp?{ignoreUndefinedProperties:true,experimentalForceLongPolling:true,merge:true}:{ignoreUndefinedProperties:true,experimentalAutoDetectLongPolling:true,merge:true});
+  try{db.settings(lp?{ignoreUndefinedProperties:true,experimentalForceLongPolling:true,experimentalAutoDetectLongPolling:false}:{ignoreUndefinedProperties:true,experimentalAutoDetectLongPolling:true});}
+  catch(e){lp=false;try{localStorage.removeItem("mf-lp");}catch(_){}try{db.settings({ignoreUndefinedProperties:true});}catch(_){}}
   window.__mfLongPolling=lp;
   db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
   let started=false;
