@@ -1,0 +1,14 @@
+rules_version = '2';
+// Só as duas contas indicadas abaixo podem ler e escrever os dados.
+// Substitui UID_VASCO e UID_ESPOSA pelos "UID de utilizador" que aparecem
+// em Authentication > Utilizadores, na Consola Firebase.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function membro() {
+      return request.auth != null && request.auth.uid in ['UID_VASCO', 'UID_ESPOSA'];
+    }
+    match /{document=**} {
+      allow read, write: if membro();
+    }
+  }
+}

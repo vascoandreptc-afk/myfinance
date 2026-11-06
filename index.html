@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>MyFinance</title>
+<meta name="description" content="Finanças da casa, orçamentos, poupança e investimentos.">
+<meta name="theme-color" content="#f4f6f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e131b" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="MyFinance">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: personal ledger with two views — monthly money (statement import, categories, trend) and investments (holdings, 365-day lots, realised results); entry forms in a side column on wide screens */
+:root{
+  --bg:#f4f6f9; --surface:#ffffff; --sunk:#eaeef4; --line:#d6dce6;
+  --fg:#16202e; --muted:#5b6778; --accent:#1f4fd1; --accent-soft:#e3ebff; --on-accent:#ffffff;
+  --pos:#0f7a4a; --pos-soft:#ddf3e8; --neg:#b42a2a; --neg-soft:#fbe4e2; --warn:#9a6200; --warn-soft:#fdf0d6;
+  --c-cripto:#1f4fd1; --c-core:#0f7a6a; --c-agr:#c2551a; --c-man:#7a4fb8; --c-in:#0f7a4a; --c-out:#b8c2d3;
+  --f-display:"Familjen Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"Public Sans",ui-sans-serif,system-ui,sans-serif;
+  --f-num:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e131b; --surface:#151c27; --sunk:#1c2532; --line:#2a3546;
+  --fg:#e6ebf3; --muted:#97a3b6; --accent:#7ea2ff; --accent-soft:#1c2a4d; --on-accent:#0e131b;
+  --pos:#4fd197; --pos-soft:#123526; --neg:#ff8a80; --neg-soft:#3d1a1a; --warn:#f2b553; --warn-soft:#3a2b10;
+  --c-cripto:#7ea2ff; --c-core:#4ec9b4; --c-agr:#f39a5b; --c-man:#b996f0; --c-in:#4fd197; --c-out:#4a5870; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e131b; --surface:#151c27; --sunk:#1c2532; --line:#2a3546;
+  --fg:#e6ebf3; --muted:#97a3b6; --accent:#7ea2ff; --accent-soft:#1c2a4d; --on-accent:#0e131b;
+  --pos:#4fd197; --pos-soft:#123526; --neg:#ff8a80; --neg-soft:#3d1a1a; --warn:#f2b553; --warn-soft:#3a2b10;
+  --c-cripto:#7ea2ff; --c-core:#4ec9b4; --c-agr:#f39a5b; --c-man:#b996f0; --c-in:#4fd197; --c-out:#4a5870; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:22px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:1.9rem;font-weight:700}
+h2{font-size:1.15rem;font-weight:600}
+.eyebrow{font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+header.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px}
+header.top p{margin:4px 0 0;color:var(--muted);max-width:60ch}
+#status{font-size:.82rem;color:var(--muted)}
+nav.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs a{white-space:nowrap;flex:0 0 auto}
+nav.tabs a{padding:9px 14px;color:var(--muted);text-decoration:none;font-weight:600;font-size:.92rem;border-bottom:2px solid transparent;margin-bottom:-1px}
+nav.tabs a[aria-current="page"]{color:var(--fg);border-color:var(--accent)}
+nav.tabs a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.view{display:flex;flex-direction:column;gap:22px}
+.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.summary.five{grid-template-columns:repeat(5,minmax(0,1fr))}
+.summary>div{background:var(--surface);padding:16px 18px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.summary .big{font-family:var(--f-num);font-size:1.4rem;font-weight:500;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.summary small{color:var(--muted);font-size:.8rem}
+.pos{color:var(--pos)} .neg{color:var(--neg)}
+.bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--sunk)}
+.bar span{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.85rem}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:22px;align-items:start}
+.main{display:flex;flex-direction:column;gap:22px;min-width:0}
+.side{display:flex;flex-direction:column;gap:16px;min-width:0}
+section.block{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.block-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tablewrap{overflow-x:auto;margin:0 -18px;padding:0 18px}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{text-align:left;font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td.r,th.r{text-align:right}
+td.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+td.wrapcell{white-space:normal;min-width:180px}
+.cat{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted)}
+.cat i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.tick{font-family:var(--f-display);font-weight:600;font-size:.95rem}
+.chip{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.76rem;font-weight:600;white-space:nowrap}
+.chip.ok{background:var(--pos-soft);color:var(--pos)}
+.chip.wait{background:var(--warn-soft);color:var(--warn)}
+.chip.na{background:var(--sunk);color:var(--muted)}
+.chip.miss{background:var(--neg-soft);color:var(--neg)}
+.progress{width:70px;height:5px;background:var(--sunk);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:8px}
+.progress span{display:block;height:100%;background:var(--warn)}
+.valedit{display:flex;gap:6px;justify-content:flex-end;align-items:center}
+.valedit input{width:110px;text-align:right}
+input,select{font:inherit;font-size:.9rem;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:7px 9px;width:100%;min-width:0}
+td select{width:auto;font-size:.82rem;padding:4px 6px}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted);font-weight:500;min-width:0}
+form{display:flex;flex-direction:column;gap:10px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{font:inherit;font-size:.86rem;font-weight:600;border-radius:7px;padding:8px 14px;cursor:pointer;border:1px solid transparent}
+button:disabled{opacity:.55;cursor:default}
+.btn{background:var(--accent);color:var(--on-accent)}
+.btn-ghost{background:transparent;border-color:var(--line);color:var(--fg)}
+.btn-link{background:none;border:none;color:var(--accent);padding:4px 6px;font-size:.8rem}
+.btn-link.danger{color:var(--neg)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.note{font-size:.8rem;color:var(--muted);margin:0}
+.formmsg{font-size:.82rem;min-height:1.2em;margin:0}
+.empty{padding:16px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-size:.88rem;text-align:center}
+.split{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.split>div{background:var(--sunk);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.split .v{font-family:var(--f-num);font-size:1.05rem}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pills button{background:var(--sunk);color:var(--muted);padding:5px 11px;font-size:.78rem;border-radius:999px}
+.pills button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
+.year{display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line);font-size:.88rem}
+.catrows{display:flex;flex-direction:column;gap:10px}
+.catrow{display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr) auto;gap:12px;align-items:center;font-size:.88rem;background:none;border:none;padding:0;color:inherit;text-align:left;cursor:pointer;border-radius:6px}
+.catrow:hover .track span{filter:brightness(1.1)}
+.catrow[aria-pressed="true"] .cname{color:var(--accent);font-weight:600}
+.catrow .track{height:10px;background:var(--sunk);border-radius:5px;overflow:hidden}
+.catrow .track span{display:block;height:100%;background:var(--accent);border-radius:5px}
+.catrow .amt{font-family:var(--f-num);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.catrow .delta{font-size:.74rem;color:var(--muted);display:block}
+.cname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drop{border:1.5px dashed var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-family:var(--f-body);font-size:11px}
+.fe-row{display:grid;grid-template-columns:minmax(0,1fr) 92px 82px;gap:6px;align-items:end;font-size:.82rem}
+.fe-row input{padding:6px 7px}
+.pbar{width:120px;height:8px;background:var(--sunk);border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle}
+.pbar span{display:block;height:100%;border-radius:4px}
+.orc-in{width:100px;text-align:right}
+tr.pl-sep td{background:var(--sunk);font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;padding:5px 10px}
+td.pct{font-family:var(--f-num);font-variant-numeric:tabular-nums;text-align:right}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.toolbar input{width:auto;flex:1 1 180px}
+.toolbar select{width:auto}
+.monthpick{display:flex;align-items:center;gap:8px}
+.monthpick select{width:auto;font-family:var(--f-display);font-weight:600;font-size:1rem}
+.rulelist{display:flex;flex-direction:column;max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.rulelist div{display:flex;justify-content:space-between;gap:8px;padding:5px 10px;font-size:.82rem;border-bottom:1px solid var(--line);align-items:center}
+.rulelist div:last-child{border-bottom:none}
+.rulelist code{font-family:var(--f-num);font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.applyrule{display:block;margin-top:2px}
+tr.excl td{opacity:.55}
+tr.excl td:last-child{opacity:1}
+@media (max-width:960px){.grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){.summary,.summary.five{grid-template-columns:repeat(2,minmax(0,1fr))}.split{grid-template-columns:minmax(0,1fr)}h1{font-size:1.55rem}.catrow{grid-template-columns:minmax(0,110px) minmax(0,1fr) auto}}
+@media (prefers-reduced-motion:no-preference){.bar span,.catrow .track span{transition:width .4s ease}}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);background:var(--bg)}
+body{margin:0;min-height:100vh}
+img{max-width:100%}
+[hidden]{display:none!important}
+button,input,select{touch-action:manipulation}
+.acct{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--muted)}
+#gate{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+#gate .card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:26px 22px;display:flex;flex-direction:column;gap:16px}
+#gate h1{font-size:1.6rem}
+#gate .mark{width:52px;height:52px;border-radius:13px}
+#gate input{font-size:16px;padding:11px 12px}
+#gate .btn{padding:12px 14px;font-size:1rem}
+.bk-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#m-app,.m-back{display:none}
+body.m-mode .wrap{display:none}
+body.m-mode #m-app{display:block}
+body.phone:not(.m-mode) .m-back{display:block}
+.m-back{margin:10px 0 0 max(16px,env(safe-area-inset-left,0px));background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:7px 14px;font-weight:600}
+#m-app{padding:10px max(14px,env(safe-area-inset-right,0px)) calc(78px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px))}
+.m-head{display:flex;justify-content:space-between;align-items:center;padding:4px 2px 10px}
+.m-logo{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:700;font-size:1.25rem}
+.m-logo img{width:28px;height:28px;border-radius:7px}
+#m-content{display:flex;flex-direction:column;gap:12px}
+.m-scope{justify-content:flex-start}
+.m-scope button{padding:7px 13px;font-size:.84rem}
+.m-month{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px}
+.m-month span{font-family:var(--f-display);font-weight:600;font-size:1rem;text-transform:capitalize}
+.m-nav{background:none;border:none;font-size:1.5rem;line-height:1;padding:4px 14px;color:var(--accent)}
+.m-nav:disabled{color:var(--line)}
+.m-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;text-align:left;font:inherit;color:inherit;width:100%}
+.m-card.m-link{cursor:pointer}
+.m-hero{gap:8px}
+.m-big{font-family:var(--f-num);font-size:1.9rem;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.m-mid{font-family:var(--f-num);font-size:1.2rem;font-weight:500;font-variant-numeric:tabular-nums}
+.m-sub{font-size:.84rem;color:var(--muted)}
+.m-sub b{color:var(--fg)}
+.m-bar{display:block;height:10px;background:var(--sunk);border-radius:5px;overflow:hidden}
+.m-bar>span{display:block;height:100%;border-radius:5px}
+.m-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.m-split{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.m-split.two{grid-template-columns:1fr 1fr}
+.m-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border:none;border-bottom:1px solid var(--line);background:none;font:inherit;color:inherit;width:100%;text-align:left}
+.m-row:last-child{border-bottom:none}
+.m-cat{display:grid;grid-template-columns:minmax(0,1fr) auto;row-gap:6px}
+.m-cat .m-bar{grid-column:1/-1;height:7px}
+.m-cn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.m-cat[aria-expanded="true"] .m-cn{color:var(--accent);font-weight:600}
+.m-list{padding-block:4px}
+.m-movs{display:flex;flex-direction:column;gap:2px;padding:4px 0 10px;border-bottom:1px solid var(--line)}
+.m-mov{background:var(--sunk);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+.m-mov.excl{opacity:.55}
+.m-mt{display:flex;justify-content:space-between;gap:8px;font-size:.88rem}
+.m-ma{display:flex;align-items:center;gap:8px;font-size:.78rem}
+.m-ma select{flex:1;min-width:0;font-size:.8rem;padding:5px 6px}
+.m-inv{display:grid;grid-template-columns:minmax(0,1fr) auto;row-gap:2px}
+.m-sub2{grid-column:1/-1;font-size:.78rem;color:var(--muted)}
+.m-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px}
+.m-chart{width:100%;height:auto;display:block}
+.m-chart text{fill:var(--muted);font-size:10px;font-family:var(--f-body)}
+.m-key{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin:0 5px 0 2px}
+.m-key.dash{background:repeating-linear-gradient(90deg,var(--muted) 0 4px,transparent 4px 7px);margin-left:10px}
+.m-pad{padding:0 4px}
+#m-tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border-top:1px solid var(--line);padding:6px max(6px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px))}
+#m-tabs button{background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:.68rem;font-weight:600;padding:4px 0}
+#m-tabs svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#m-tabs button[aria-current="page"]{color:var(--accent)}
+@media (max-width:640px){
+  .wrap{padding-block:12px 40px;gap:16px}
+  header.top{gap:6px}
+  header.top p,header.top .eyebrow{display:none}
+  header.top h1{font-size:1.3rem}
+  header.top>div:last-child{align-items:flex-start!important;flex-direction:row!important;flex-wrap:wrap;gap:4px 12px!important}
+  .summary .big{font-size:1.12rem}
+  .summary.five>div:last-child{grid-column:1/-1}
+  .summary>div{padding:12px 14px}
+  .monthpick{flex-wrap:wrap;gap:6px}
+  .monthpick select{max-width:100%}
+  nav.tabs{position:sticky;top:0;z-index:5;background:var(--bg);margin-inline:-16px;padding-inline:16px}
+  section.block{padding:14px}
+  .tablewrap{margin:0 -14px;padding:0 14px}
+}
+.bk-row label.btn-ghost{display:inline-flex;align-items:center;cursor:pointer;font-weight:600;font-size:.86rem;color:var(--fg);border:1px solid var(--line);border-radius:7px;padding:8px 14px}
+</style>
+</head>
+<body>
+<div id="gate" hidden>
+  <div class="card">
+    <img class="mark" src="icons/icon-192.png" alt="">
+    <div><div class="eyebrow">Revolut · Conta conjunta · XTB</div><h1>MyFinance</h1></div>
+    <form id="login-form" novalidate>
+      <label for="login-email">Email<input id="login-email" type="email" autocomplete="username" inputmode="email" autocapitalize="off"></label>
+      <label for="login-pass">Palavra-passe<input id="login-pass" type="password" autocomplete="current-password"></label>
+      <button class="btn" type="submit" id="login-go">Entrar</button>
+      <button class="btn-link" type="button" id="login-reset">Esqueci-me da palavra-passe</button>
+    </form>
+    <p class="formmsg" id="login-msg" role="status"></p>
+  </div>
+</div>
+
+
+<div id="m-app"><header class="m-head"><span class="m-logo"><img src="icons/icon-192.png" alt=""> MyFinance</span></header><main id="m-content"></main><nav id="m-tabs" aria-label="Secções"><button type="button" data-t="resumo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg><span>Resumo</span></button><button type="button" data-t="orcamento"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span>Orçamento</span></button><button type="button" data-t="poupanca"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10.5h4a1.5 1.5 0 010 3h-3a1.5 1.5 0 000 3h4"/></svg><span>Poupança</span></button><button type="button" data-t="investimentos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg><span>Investir</span></button><button type="button" data-t="mais"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg><span>Mais</span></button></nav></div>
+<div class="wrap">
+  <button type="button" id="m-back" class="m-back">‹ Voltar ao resumo</button>
+  <header class="top">
+    <div>
+      <div class="eyebrow">Revolut · Conta conjunta · XTB</div>
+      <h1>MyFinance</h1>
+      <p>O dinheiro do mês a partir dos extratos, e a carteira com a contagem dos 365 dias da cripto.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><div class="acct" id="acct" hidden><span id="who"></span><button type="button" class="btn-link" id="logout">Sair</button></div><div id="status">A carregar os teus registos…</div></div>
+  </header>
+
+  <nav class="tabs" aria-label="Secções">
+    <a href="#financas" id="tab-financas">Finanças do mês</a>
+    <a href="#orcamentos" id="tab-orcamentos">Orçamentos</a>
+    <a href="#plano" id="tab-plano">Plano anual</a>
+    <a href="#poupanca" id="tab-poupanca">Poupança e objetivos</a>
+    <a href="#investimentos" id="tab-investimentos">Investimentos</a>
+  </nav>
+
+  <!-- ============ FINANÇAS ============ -->
+  <div class="view" id="v-financas">
+    <div class="block-head">
+      <div class="btn-row">
+        <div class="pills" id="conta-pills" role="group" aria-label="Conta"><button type="button" data-c="pessoal" aria-pressed="true">Conta pessoal</button><button type="button" data-c="conjunta" aria-pressed="false">Conta conjunta</button></div>
+        <div class="monthpick"><span class="eyebrow">Ano</span><select id="a-sel" aria-label="Escolher ano"></select><span class="eyebrow">Mês</span><select id="m-sel" aria-label="Escolher mês"></select></div>
+      </div>
+      <span class="note" id="m-saldo"></span>
+    </div>
+
+    <div class="summary five" aria-label="Resumo do mês">
+      <div><span class="eyebrow">Entradas</span><span class="big pos" id="f-in">—</span><small id="f-in-sub">&nbsp;</small></div>
+      <div><span class="eyebrow">Despesas</span><span class="big" id="f-out">—</span><small id="f-out-sub">&nbsp;</small></div>
+      <div><span class="eyebrow">Poupança</span><span class="big" id="f-sav">—</span><small id="f-sav-sub">&nbsp;</small></div>
+      <div><span class="eyebrow">Investido</span><span class="big" id="f-inv">—</span><small id="f-inv-sub">&nbsp;</small></div>
+      <div><span class="eyebrow">Taxa de poupança</span><span class="big" id="f-rate">—</span><small id="f-rate-sub">&nbsp;</small></div>
+    </div>
+
+    <div class="grid">
+      <div class="main">
+        <section class="block">
+          <div class="block-head"><h2>Despesas por categoria</h2><span class="note" id="cat-note">Toca numa categoria para ver os movimentos</span></div>
+          <div class="catrows" id="cat-rows"></div>
+          <div id="cat-empty" class="empty" hidden>Sem despesas neste mês.</div>
+        </section>
+
+        <section class="block">
+          <div class="block-head"><h2>Evolução mensal</h2><span class="legend"><span><i style="background:var(--c-in)"></i>Entradas</span><span><i style="background:var(--c-out)"></i>Despesas</span><span><i style="background:var(--accent)"></i>Poupança</span></span></div>
+          <div class="chart" id="trend"></div>
+        </section>
+
+        <section class="block">
+          <div class="block-head"><h2>Movimentos</h2><span class="note" id="mov-count"></span></div>
+          <div class="toolbar">
+            <input id="mov-q" type="search" placeholder="Procurar descrição…" aria-label="Procurar movimentos">
+            <select id="mov-cat" aria-label="Filtrar por categoria"><option value="">Todas as categorias</option></select>
+          </div>
+          <div class="tablewrap"><table>
+            <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th class="r">Valor</th><th></th></tr></thead>
+            <tbody id="t-mov"></tbody>
+          </table></div>
+          <div id="mov-empty" class="empty" hidden>Sem movimentos para mostrar.</div>
+        </section>
+      </div>
+
+      <aside class="side">
+        <section class="block">
+          <h2>Importar extrato</h2>
+          <div class="drop" id="drop">
+            <span class="note">Aceita três ficheiros: o extrato de EUR da Revolut (PDF, conta pessoal ou conjunta), o extrato da conta de criptomoedas da Revolut (PDF) e o histórico da conta XTB (Excel .xlsx). A página reconhece cada um. Reimportar atualiza sem duplicar e mantém o que mudaste à mão.</span>
+            <input id="imp-file" type="file" accept="application/pdf,.pdf,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="Escolher extrato">
+          </div>
+          <div id="imp-preview" hidden>
+            <p class="note" id="imp-info"></p>
+            <label for="imp-conta" id="imp-conta-wrap">Conta<select id="imp-conta"><option value="pessoal">Conta pessoal</option><option value="conjunta">Conta conjunta</option></select></label>
+            <div class="btn-row"><button class="btn" type="button" id="imp-go">Importar</button><button class="btn-ghost" type="button" id="imp-cancel">Cancelar</button></div>
+          </div>
+          <p class="formmsg" id="imp-msg" role="status"></p>
+          <p class="note">Dica: exporta os extratos nos primeiros 5 dias do mês. Os valores da XTB e da cripto ficam registados como o fecho do mês anterior.</p>
+        </section>
+
+        <section class="block">
+          <h2>Maiores despesas</h2>
+          <div id="top-list" class="catrows"></div>
+        </section>
+
+        <section class="block">
+          <h2>Cópia de segurança</h2>
+          <div class="bk-row"><button class="btn-ghost" type="button" id="bk-export">Descarregar cópia</button><label class="btn-ghost" for="bk-file">Importar cópia…</label><input id="bk-file" type="file" accept="application/json,.json" hidden></div>
+          <div class="formmsg" id="bk-msg" role="status"></div>
+          <p class="note">Descarrega uma cópia de vez em quando e guarda-a no iCloud Drive. Importar uma cópia repõe os registos que ela contém.</p>
+        </section>
+
+        <section class="block">
+          <h2>Categorias</h2>
+          <form id="f-cat" novalidate>
+            <div class="row2">
+              <label for="ca-nome">Nova categoria<input id="ca-nome" placeholder="ex.: Creche"></label>
+              <label for="ca-tipo">Tipo<select id="ca-tipo"></select></label>
+            </div>
+            <button class="btn-ghost" type="submit">Criar categoria</button>
+            <p class="formmsg" id="ca-msg" role="status"></p>
+          </form>
+          <div class="rulelist" id="cat-list"></div>
+          <p class="note">Despesa entra nas despesas e nos orçamentos; Poupança entra na taxa de poupança; Reserva e Transferência interna ficam fora das contas. Para tirar um movimento da análise sem mudar a categoria, usa "Excluir" na tabela de movimentos.</p>
+        </section>
+
+        <section class="block">
+          <div class="block-head"><h2>Regras de categoria</h2><span class="note" id="rule-count"></span></div>
+          <form id="f-rule" novalidate>
+            <div class="row2">
+              <label for="ru-txt">Se a descrição contém<input id="ru-txt" placeholder="ex.: continente"></label>
+              <label for="ru-cat">Categoria<select id="ru-cat"></select></label>
+            </div>
+            <label for="ru-conta">Aplica-se a<select id="ru-conta"><option value="">Todas as contas</option><option value="pessoal">Conta pessoal</option><option value="conjunta">Conta conjunta</option></select></label>
+            <button class="btn-ghost" type="submit">Adicionar regra</button>
+            <p class="formmsg" id="ru-msg" role="status"></p>
+          </form>
+          <div class="rulelist" id="rule-list"></div>
+          <p class="note">A primeira regra que corresponde ganha. As novas ficam no topo e são aplicadas a todos os meses, exceto a movimentos que alteraste à mão.</p>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+
+  <!-- ============ ORÇAMENTOS ============ -->
+  <div class="view" id="v-orcamentos" hidden>
+    <div class="block-head">
+      <div class="btn-row">
+        <div class="pills" id="orc-conta" role="group" aria-label="Conta"><button type="button" data-c="pessoal" aria-pressed="true">Conta pessoal</button><button type="button" data-c="conjunta" aria-pressed="false">Conta conjunta</button></div>
+        <div class="monthpick"><span class="eyebrow">Mês</span><select id="orc-mes" aria-label="Escolher mês"></select></div>
+      </div>
+      <span class="note" id="orc-note"></span>
+    </div>
+    <div class="summary" aria-label="Resumo do orçamento">
+      <div><span class="eyebrow">Orçamento do mês</span><span class="big" id="o-tot">—</span><small id="o-tot-sub">&nbsp;</small></div>
+      <div><span class="eyebrow">Gasto médio (3 meses)</span><span class="big" id="o-gasto">—</span><small id="o-gasto-sub">&nbsp;</small></div>
+      <div><span class="eyebrow">Restante</span><span class="big" id="o-rest">—</span><small id="o-rest-sub">&nbsp;</small></div>
+      <div><span class="eyebrow">Cumprimento no ano</span><span class="big" id="o-ano">—</span><small id="o-ano-sub">&nbsp;</small></div>
+    </div>
+    <section class="block">
+      <div class="block-head"><h2>Orçamento por categoria</h2>
+        <div class="btn-row"><button class="btn-ghost" type="button" id="orc-sug">Sugerir pela média de 3 meses</button><button class="btn" type="button" id="orc-save">Guardar orçamento</button></div>
+      </div>
+      <p class="formmsg" id="orc-msg" role="status"></p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Categoria</th><th class="r">Orçamento mensal</th><th class="r">Gasto (média 3 meses)</th><th class="r">Restante</th><th>Progresso</th><th class="r">No ano</th></tr></thead>
+        <tbody id="t-orc"></tbody>
+      </table></div>
+      <p class="note">O orçamento é mensal e igual para todos os meses. O gasto é a média dos 3 últimos meses completos até ao mês escolhido, e é com ela que se calcula o restante e o estado. "No ano" conta os meses completos em que ficaste dentro do valor e compara o gasto acumulado com o orçamento acumulado. Categorias sem orçamento não entram no cumprimento.</p>
+    </section>
+  </div>
+
+
+  <!-- ============ PLANO ANUAL ============ -->
+  <div class="view" id="v-plano" hidden>
+    <div class="block-head">
+      <div class="btn-row">
+        <div class="pills" id="pl-conta" role="group" aria-label="Conta"><button type="button" data-c="pessoal" aria-pressed="true">Conta pessoal</button><button type="button" data-c="conjunta" aria-pressed="false">Conta conjunta</button></div>
+        <div class="monthpick"><span class="eyebrow">Ano</span><select id="pl-ano" aria-label="Ano do plano"></select></div>
+      </div>
+      <span class="note" id="pl-note"></span>
+    </div>
+    <div class="summary" aria-label="Resumo do plano">
+      <div><span class="eyebrow">Despesas planeadas</span><span class="big" id="pl-desp">—</span><small id="pl-desp-sub">&nbsp;</small></div>
+      <div><span class="eyebrow">Real vs plano até hoje</span><span class="big" id="pl-ytd">—</span><small id="pl-ytd-sub">&nbsp;</small></div>
+      <div><span class="eyebrow">Projeção para o ano</span><span class="big" id="pl-proj">—</span><small id="pl-proj-sub">&nbsp;</small></div>
+      <div><span class="eyebrow">Poupança planeada</span><span class="big" id="pl-poup">—</span><small id="pl-poup-sub">&nbsp;</small></div>
+    </div>
+    <section class="block">
+      <div class="block-head"><h2>Despesas acumuladas: real vs plano</h2><span class="legend"><span><i style="background:var(--accent)"></i>Real</span><span><i style="background:var(--muted)"></i>Plano</span></span></div>
+      <div class="chart" id="pl-chart"></div>
+    </section>
+    <section class="block">
+      <div class="block-head"><h2>Plano por categoria</h2>
+        <div class="btn-row"><button class="btn-ghost" type="button" id="pl-fill">Preencher com a média do ano anterior</button><button class="btn" type="button" id="pl-save">Guardar plano</button></div>
+      </div>
+      <p class="formmsg" id="pl-msg" role="status"></p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Linha</th><th class="r">Plano / mês</th><th class="r">Plano / ano</th><th class="r">Média ano anterior</th><th class="r">Real acumulado</th><th class="r">Plano acumulado</th><th class="r">Desvio</th><th class="r">Projeção ano</th><th>Estado</th></tr></thead>
+        <tbody id="t-pl"></tbody>
+      </table></div>
+      <p class="note">O plano é mensal por categoria; o anual é 12 vezes esse valor. O plano acumulado conta os meses completos do ano com extrato importado. A projeção soma o real até agora com a média mensal real nos meses que faltam. Quando existe plano para um ano, os Orçamentos desse ano passam a usar estes valores.</p>
+    </section>
+  </div>
+  <!-- ============ POUPANÇA ============ -->
+  <div class="view" id="v-poupanca" hidden>
+    <div class="block-head">
+      <div class="pills" id="pp-scope" role="group" aria-label="Âmbito"><button type="button" data-s="pessoal" aria-pressed="true">Conta pessoal</button><button type="button" data-s="conjunta" aria-pressed="false">Conta conjunta</button><button type="button" data-s="ambas" aria-pressed="false">As duas</button></div>
+      <span class="note" id="pp-note"></span>
+    </div>
+    <div class="summary" aria-label="Resumo da poupança">
+      <div><span class="eyebrow">Poupado no ano</span><span class="big" id="p-ytd">—</span><small id="p-ytd-sub">&nbsp;</small></div>
+      <div><span class="eyebrow">Média mensal</span><span class="big" id="p-avg">—</span><small id="p-avg-sub">&nbsp;</small></div>
+      <div><span class="eyebrow">Taxa de poupança</span><span class="big" id="p-rate">—</span><small id="p-rate-sub">&nbsp;</small></div>
+      <div><span class="eyebrow">Objetivo anual</span><span class="big" id="p-goal">—</span><small id="p-goal-sub">&nbsp;</small></div>
+    </div>
+    <div class="grid">
+      <div class="main">
+        <section class="block">
+          <div class="block-head"><h2>Poupado por mês</h2><span class="legend"><span><i style="background:var(--accent)"></i>Poupado</span><span><i style="background:var(--warn)"></i>Objetivo mensal</span></span></div>
+          <div class="chart" id="pp-bars"></div>
+        </section>
+        <section class="block">
+          <div class="block-head"><h2>Acumulado vs esperado</h2><span class="legend"><span><i style="background:var(--accent)"></i>Real</span><span><i style="background:var(--muted)"></i>Esperado pelo objetivo</span></span></div>
+          <div class="chart" id="pp-cum"></div>
+          <p class="note" id="pp-cum-note"></p>
+        </section>
+        <section class="block">
+          <h2>Detalhe mensal</h2>
+          <div class="tablewrap"><table>
+            <thead><tr><th>Mês</th><th class="r">Entradas</th><th class="r">Despesas</th><th class="r">Poupado</th><th class="r">Taxa</th><th class="r">Investido</th><th class="r">vs objetivo</th></tr></thead>
+            <tbody id="t-pp"></tbody>
+          </table></div>
+          <p class="note">Poupado = movimentos nas categorias de poupança: os 150 € que passam para a conta conjunta para a poupança e o que vai da conjunta para a conta poupança, mais o que categorizares como Poupança. Investimentos e cofres de reserva não contam. Taxa = poupado ÷ entradas. Em "As duas", os 150 € só contam uma vez e as transferências entre contas não contam como entrada.</p>
+        </section>
+      </div>
+      <aside class="side">
+        <section class="block">
+          <h2>Objetivos de poupança</h2>
+          <form id="f-goal" novalidate>
+            <p class="note" id="goal-scope"></p>
+            <div class="row2">
+              <label for="g-mensal">Por mês (€)<input id="g-mensal" type="number" step="1" min="0" inputmode="decimal"></label>
+              <label for="g-anual">Por ano (€)<input id="g-anual" type="number" step="1" min="0" inputmode="decimal"></label>
+            </div>
+            <label for="g-taxa">Taxa de poupança alvo (%)<input id="g-taxa" type="number" step="1" min="0" max="100" inputmode="decimal"></label>
+            <button class="btn" type="submit">Guardar objetivos</button>
+            <p class="formmsg" id="g-msg" role="status"></p>
+            <p class="note">Se só definires o valor mensal, o anual é 12 vezes esse valor. O esperado em cada momento distribui o objetivo anual pelos meses.</p>
+          </form>
+        </section>
+        <section class="block">
+          <h2>Ritmo do ano</h2>
+          <div id="pp-pace" class="catrows"></div>
+        </section>
+      </aside>
+    </div>
+  </div>
+  <!-- ============ INVESTIMENTOS ============ -->
+  <div class="view" id="v-investimentos" hidden>
+    <div class="summary" aria-label="Resumo da carteira">
+      <div><span class="eyebrow">Valor atual</span><span class="big" id="s-valor">—</span><small id="s-valor-sub">&nbsp;</small></div>
+      <div><span class="eyebrow">Investido</span><span class="big" id="s-inv">—</span><small id="s-inv-sub">&nbsp;</small></div>
+      <div><span class="eyebrow">Resultado latente</span><span class="big" id="s-res">—</span><small id="s-res-sub">&nbsp;</small></div>
+      <div><span class="eyebrow">Peso da cripto</span><span class="big" id="s-cripto">—</span><small id="s-cripto-sub">&nbsp;</small></div>
+    </div>
+
+    <section class="block">
+      <div class="block-head"><h2>Alocação</h2><span class="note">por valor atual</span></div>
+      <div class="bar" id="alloc-bar"></div>
+      <div class="legend" id="alloc-legend"></div>
+    </section>
+
+
+    <section class="block">
+      <div class="block-head"><h2>Rentabilidade</h2><span class="note" id="rent-note"></span></div>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Investimento</th><th class="r">Valor atual</th><th class="r">Aportado no ano</th><th class="r">Ganho no ano</th><th class="r">Rent. no ano</th><th class="r">Último mês</th></tr></thead>
+        <tbody id="t-rent"></tbody>
+      </table></div>
+      <div class="chart" id="rent-chart"></div>
+      <div class="block-head"><h3 style="font-size:1rem">Rentabilidade mensal</h3><span class="legend"><span><i style="background:var(--accent)"></i>Valor da carteira</span><span><i style="background:var(--muted)"></i>Total aportado</span></span></div>
+      <div class="tablewrap"><table>
+        <thead id="rm-head"></thead><tbody id="t-rm"></tbody>
+      </table></div>
+      <p class="note">Rentabilidade mensal pelo método de Dietz (desconta os aportes do mês); a do ano encadeia os meses de cada investimento, e a do total compara o ganho com o capital médio investido. O total mensal só inclui os investimentos com valor nesse mês. Os valores de fim de mês até outubro são estimados com os preços das compras mensais; regista os próximos fechos para ficarem exatos.</p>
+    </section>
+    <div class="grid">
+      <div class="main">
+        <section class="block">
+          <div class="block-head"><h2>Ativos</h2><span class="note">Atualiza o valor atual com o que vês na app</span></div>
+          <div class="tablewrap"><table>
+            <thead><tr><th>Ativo</th><th>Categoria</th><th class="r">Investido</th><th class="r">Valor atual</th><th class="r">Resultado</th><th class="r">Peso</th></tr></thead>
+            <tbody id="t-ativos"></tbody>
+          </table></div>
+          <div id="ativos-empty" class="empty" hidden>Ainda não há ativos. Regista a primeira compra no formulário.</div>
+        </section>
+
+        <section class="block">
+          <div class="block-head"><h2>Cripto e isenção de 365 dias</h2><span class="note">Venda após 365 dias: mais-valia isenta. Antes: 28%.</span></div>
+          <div class="split">
+            <div><span class="eyebrow">Já isento</span><span class="v pos" id="x-isento">—</span><small class="muted">podes vender sem imposto</small></div>
+            <div><span class="eyebrow">Ainda tributável</span><span class="v" id="x-trib">—</span><small class="muted" id="x-trib-sub"></small></div>
+            <div><span class="eyebrow">Próxima isenção</span><span class="v" id="x-prox">—</span><small class="muted" id="x-prox-sub"></small></div>
+          </div>
+        </section>
+
+        <section class="block">
+          <div class="block-head"><h2>Lotes de compra</h2>
+            <div class="pills" id="filters" role="group" aria-label="Filtrar por categoria">
+              <button type="button" data-f="all" aria-pressed="true">Todos</button>
+              <button type="button" data-f="Cripto" aria-pressed="false">Cripto</button>
+              <button type="button" data-f="ETF Core" aria-pressed="false">ETF Core</button>
+              <button type="button" data-f="ETF Agressivo" aria-pressed="false">ETF Agressivo</button>
+              <button type="button" data-f="XTB Manual" aria-pressed="false">XTB Manual</button>
+            </div>
+          </div>
+          <div class="tablewrap"><table>
+            <thead><tr><th>Data</th><th>Ativo</th><th>Plataforma</th><th class="r">Investido</th><th class="r">Valor est.</th><th class="r">Resultado</th><th>Isenção</th><th></th></tr></thead>
+            <tbody id="t-lotes"></tbody>
+          </table></div>
+          <div id="lotes-empty" class="empty" hidden>Sem lotes nesta categoria.</div>
+          <p class="note">Valor estimado por lote: repartido pela quantidade quando todos os lotes do ativo a têm, senão pelo valor investido. Os lotes mensais dos Trocos usam a data da última compra do mês, por isso a isenção mostrada nunca chega antes do tempo. Nos ETFs a mais-valia paga sempre 28%.</p>
+        </section>
+
+        <section class="block">
+          <div class="block-head"><h2>Resultados realizados</h2><span class="note">Para o IRS do ano seguinte</span></div>
+          <div class="tablewrap"><table>
+            <thead><tr><th>Data</th><th>Ativo</th><th>Plataforma</th><th class="r">Resultado</th><th>Nota</th><th></th></tr></thead>
+            <tbody id="t-real"></tbody>
+          </table></div>
+          <div id="real-empty" class="empty" hidden>Sem vendas ou fechos registados.</div>
+          <div id="real-years"></div>
+        </section>
+      </div>
+
+      <aside class="side">
+        <section class="block">
+          <h2>Registar fecho do mês</h2>
+          <form id="f-fecho" novalidate>
+            <label for="fe-mes">Mês<input id="fe-mes" type="month"></label>
+            <div id="fe-rows" style="display:flex;flex-direction:column;gap:8px"></div>
+            <button class="btn" type="submit">Guardar fecho</button>
+            <p class="formmsg" id="fe-msg" role="status"></p>
+            <p class="note">No fim de cada mês, regista o valor de cada investimento (vês na XTB e na Revolut) e quanto lá puseste nesse mês. Os valores atuais da tabela de ativos já vêm preenchidos.</p>
+          </form>
+        </section>
+        <section class="block">
+          <h2 id="f-title">Registar compra</h2>
+          <form id="f-lote" novalidate>
+            <div class="row2">
+              <label for="l-data">Data<input id="l-data" type="date"></label>
+              <label for="l-ticker">Ativo<input id="l-ticker" list="tickers" placeholder="BTC, VWCE…" autocomplete="off"></label>
+            </div>
+            <datalist id="tickers"></datalist>
+            <div class="row2">
+              <label for="l-cat">Categoria<select id="l-cat"><option>Cripto</option><option>ETF Core</option><option>ETF Agressivo</option><option>XTB Manual</option></select></label>
+              <label for="l-plat">Plataforma<select id="l-plat"><option>Revolut</option><option>Revolut X</option><option>XTB</option><option>Outra</option></select></label>
+            </div>
+            <div class="row2">
+              <label for="l-inv">Valor investido (€)<input id="l-inv" type="number" step="0.01" min="0" inputmode="decimal"></label>
+              <label for="l-qty">Quantidade (opcional)<input id="l-qty" type="number" step="any" min="0" inputmode="decimal"></label>
+            </div>
+            <label for="l-nota">Nota<input id="l-nota" placeholder="ex.: compra anual"></label>
+            <div class="btn-row"><button class="btn" type="submit" id="l-submit">Guardar compra</button><button class="btn-ghost" type="button" id="l-cancel" hidden>Cancelar edição</button></div>
+            <p class="formmsg" id="l-msg" role="status"></p>
+          </form>
+        </section>
+
+        <section class="block">
+          <h2>Registar resultado realizado</h2>
+          <form id="f-real" novalidate>
+            <div class="row2">
+              <label for="r-data">Data<input id="r-data" type="date"></label>
+              <label for="r-ticker">Ativo<input id="r-ticker" list="tickers" autocomplete="off"></label>
+            </div>
+            <div class="row2">
+              <label for="r-plat">Plataforma<select id="r-plat"><option>Revolut</option><option>Revolut X</option><option>XTB</option><option>Outra</option></select></label>
+              <label for="r-res">Resultado (€)<input id="r-res" type="number" step="0.01" inputmode="decimal" placeholder="-88.91"></label>
+            </div>
+            <label for="r-nota">Nota<input id="r-nota" placeholder="ex.: venda isenta (mais de 365 dias)"></label>
+            <button class="btn" type="submit">Guardar resultado</button>
+            <p class="formmsg" id="r-msg" role="status"></p>
+            <p class="note">Ao vender, regista aqui o resultado e reduz ou apaga o lote vendido.</p>
+          </form>
+        </section>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js?v=2"></script>
+<script src="shell.js?v=2"></script>
+<script src="app.js?v=2"></script>
+</body>
+</html>
