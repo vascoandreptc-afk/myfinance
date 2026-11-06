@@ -923,10 +923,19 @@ function tinyBars(rows,goal){if(!rows.length)return "";const W=340,H=130,pl=4,pb
   let s='<svg viewBox="0 0 '+W+' '+H+'" class="m-chart" role="img">';rows.forEach((r,i)=>{const cx=pl+gw*i+gw/2,v=Math.max(0,r.v);
     s+='<rect x="'+(cx-bw/2).toFixed(1)+'" y="'+y(v).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+(y(0)-y(v)).toFixed(1)+'" rx="3" fill="'+(r.hl?"var(--accent)":"var(--c-out)")+'"><title>'+r.t+'</title></rect><text x="'+cx+'" y="'+(H-4)+'" text-anchor="middle">'+r.l+'</text>';});
   if(goal)s+='<line x1="0" x2="'+W+'" y1="'+y(goal)+'" y2="'+y(goal)+'" stroke="var(--warn)" stroke-width="1.5" stroke-dasharray="5 4"/>';return s+'</svg>';}
-function tinyLines(pts){if(pts.length<2)return "";const W=340,H=130,pt=10,pb=18;const all=pts.flatMap(p=>[p.v,p.a]);const lo=Math.min(...all)*0.95,hi=Math.max(...all)*1.02;const y=v=>pt+(H-pt-pb)*(1-(v-lo)/(hi-lo||1));const x=i=>6+(W-12)*i/(pts.length-1);
-  const path=k=>pts.map((p,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+y(p[k]).toFixed(1)).join("");
-  let s='<svg viewBox="0 0 '+W+' '+H+'" class="m-chart" role="img"><path d="'+path("v")+'L'+x(pts.length-1)+" "+(H-pb)+"L"+x(0)+" "+(H-pb)+'Z" fill="var(--accent-soft)"/><path d="'+path("a")+'" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 4"/><path d="'+path("v")+'" fill="none" stroke="var(--accent)" stroke-width="2.5"/>';
-  pts.forEach((p,i)=>{const last=i===pts.length-1;if((i%2===0&&i<pts.length-2)||last||pts.length<=4)s+='<text x="'+x(i)+'" y="'+(H-4)+'" text-anchor="'+(i===0?"start":last?"end":"middle")+'">'+MES[+p.m.slice(5)-1].slice(0,3)+'</text>';});return s+'</svg>';}
+function mIdx(m){return +m.slice(0,4)*12+(+m.slice(5)-1);}
+function mLbl(m,yr){return MES[+m.slice(5)-1].slice(0,3)+(yr?" "+m.slice(2,4):"");}
+function mPeriodFilter(pts){const per=st.m.per||"tudo";if(per==="tudo"||!pts.length)return pts;const last=mIdx(pts[pts.length-1].m);const n=per==="6m"?6:12;
+  const f=pts.filter(p=>mIdx(p.m)>=last-n);return f.length>=2?f:pts.slice(-2);}
+function periodChips(){const o=[["6m","6M"],["1a","1A"],["tudo","Tudo"]];const per=st.m.per||"tudo";return '<div class="pills m-per">'+o.map(([k,l])=>'<button type="button" data-per="'+k+'" aria-pressed="'+(per===k)+'">'+l+'</button>').join("")+'</div>';}
+function tinyLines(pts){pts=mPeriodFilter(pts);if(pts.length<2)return "";const W=340,H=130,pt=10,pb=18;const all=pts.flatMap(p=>[p.v,p.a]);const lo=Math.min(...all)*0.95,hi=Math.max(...all)*1.02;const y=v=>pt+(H-pt-pb)*(1-(v-lo)/(hi-lo||1));
+  const i0=mIdx(pts[0].m),i1=mIdx(pts[pts.length-1].m),span=Math.max(1,i1-i0);const x=p=>6+(W-12)*(mIdx(p.m)-i0)/span;
+  const path=k=>pts.map((p,i)=>(i?"L":"M")+x(p).toFixed(1)+" "+y(p[k]).toFixed(1)).join("");
+  let s='<svg viewBox="0 0 '+W+' '+H+'" class="m-chart" role="img"><path d="'+path("v")+'L'+x(pts[pts.length-1])+" "+(H-pb)+"L"+x(pts[0])+" "+(H-pb)+'Z" fill="var(--accent-soft)"/><path d="'+path("a")+'" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 4"/><path d="'+path("v")+'" fill="none" stroke="var(--accent)" stroke-width="2.5"/>';
+  const yr=pts[0].m.slice(0,4)!==pts[pts.length-1].m.slice(0,4)||span>11;const nT=Math.min(5,span+1);const ticks=[];
+  for(let k=0;k<nT;k++){const idx=Math.round(i0+span*k/(nT-1||1));const m=Math.floor(idx/12)+"-"+String(idx%12+1).padStart(2,"0");if(!ticks.includes(m))ticks.push(m);}
+  ticks.forEach((m,k)=>{const xx=6+(W-12)*(mIdx(m)-i0)/span;s+='<text x="'+xx.toFixed(1)+'" y="'+(H-4)+'" text-anchor="'+(k===0?"start":k===ticks.length-1?"end":"middle")+'">'+mLbl(m,yr)+'</text>';});
+  return s+'</svg>';}
 function mGroupSeries(id){const ser=histGroups()[id]||{};const ms=Object.keys(ser).sort().filter(m=>ser[m].v!=null);const pts=[];let base=null,acc=0,last=null;
   for(const m of Object.keys(ser).sort()){if(last!==null)acc+=+ser[m].a||0;if(ser[m].v==null)continue;if(base===null)base=ser[m].v;pts.push({m,v:ser[m].v,a:base+acc});last=m;}return pts;}
 function mInvestSeries(){const H=histGroups();const allM=[...new Set(Object.values(H).flatMap(s=>Object.keys(s)))].sort();
@@ -987,9 +996,9 @@ function renderMobile(){
       const cat=selG[2],tk=selG[3];const lots=st.lotes.filter(l=>l.categoria===cat&&(!tk||l.ticker===tk));const inv=lots.reduce((a,l)=>a+(+l.investido||0),0);
       const AKs=Object.values(st.ativos).filter(a=>(a.categoria||"Cripto")===cat&&(!tk||a.ticker===tk));const cur=AKs.length?AKs.reduce((a,x)=>a+(+x.valorAtual||0),0):v;
       const pts=mGroupSeries(selG[0]);
-      h+='<div class="m-card m-hero"><div class="eyebrow"><i class="m-dot" style="background:'+INV_COLOR[cat]+'"></i>'+esc(selG[1])+'</div><div class="m-big">'+eur.format(cur)+'</div><div class="m-sub">Investido '+eur.format(inv)+' · resultado <span class="'+cls(cur-inv)+'">'+signed(cur-inv)+'</span> · '+pctOrDash(R.acum)+' no ano</div>'+
-        (pts.length>1?tinyLines(pts):'<p class="note">Ainda há poucos fechos mensais para desenhar a evolução deste investimento.</p>')+'<div class="m-sub"><span class="m-key" style="background:var(--accent)"></span>valor <span class="m-key dash"></span>total aportado · toca outra vez para ver o total</div></div>';}
-    else h+='<div class="m-card m-hero"><div class="eyebrow">Carteira</div><div class="m-big">'+esc($("s-valor").textContent)+'</div><div class="m-sub">Investido '+esc($("s-inv").textContent)+' · resultado <span class="'+($("s-res").className.includes("neg")?"neg":"pos")+'">'+esc($("s-res").textContent)+'</span></div>'+tinyLines(mInvestSeries())+'<div class="m-sub"><span class="m-key" style="background:var(--accent)"></span>valor <span class="m-key dash"></span>total aportado · toca num investimento para o ver sozinho</div></div>';
+      h+='<div class="m-card m-hero"><div class="eyebrow"><i class="m-dot" style="background:'+INV_COLOR[cat]+'"></i>'+esc(selG[1])+'</div><div class="m-big">'+eur.format(cur)+'</div><div class="m-sub">'+(()=>{const ds=lots.map(l=>l.data).filter(Boolean).sort();return ds.length?"Desde "+mLbl(ds[0].slice(0,7),true)+" · ":"";})()+'Investido '+eur.format(inv)+' · resultado <span class="'+cls(cur-inv)+'">'+signed(cur-inv)+'</span> · '+pctOrDash(R.acum)+' no ano</div>'+
+        (pts.length>1?periodChips()+tinyLines(pts)+'<div class="m-sub">'+mLbl(mPeriodFilter(pts)[0].m,true)+' a '+mLbl(pts[pts.length-1].m,true)+' · '+mPeriodFilter(pts).length+' fechos mensais</div>':'<p class="note">Ainda há poucos fechos mensais para desenhar a evolução deste investimento.</p>')+'<div class="m-sub"><span class="m-key" style="background:var(--accent)"></span>valor <span class="m-key dash"></span>total aportado · toca outra vez para ver o total</div></div>';}
+    else h+='<div class="m-card m-hero"><div class="eyebrow">Carteira</div><div class="m-big">'+esc($("s-valor").textContent)+'</div><div class="m-sub">Investido '+esc($("s-inv").textContent)+' · resultado <span class="'+($("s-res").className.includes("neg")?"neg":"pos")+'">'+esc($("s-res").textContent)+'</span></div>'+(()=>{const P=mInvestSeries();return P.length>1?periodChips()+tinyLines(P)+'<div class="m-sub">'+mLbl(mPeriodFilter(P)[0].m,true)+' a '+mLbl(P[P.length-1].m,true)+'</div>':"";})()+'<div class="m-sub"><span class="m-key" style="background:var(--accent)"></span>valor <span class="m-key dash"></span>total aportado · toca num investimento para o ver sozinho</div></div>';
     h+='<div class="m-card m-list">';
     for(const [id,nome,cat] of GROUPS){const ser=H[id];if(!ser)continue;const ms2=Object.keys(ser).sort();const R=seriesReturns(ser);const lastM=ms2.filter(m=>ser[m].v!=null).pop();const last=lastM?ser[lastM]:{v:0};
       const lf=ms2.filter(x=>R.mensal[x]&&R.mensal[x].r!=null&&!R.mensal[x].gap&&!ser[x].parcial).pop();const on=st.m.inv===id;
@@ -1006,6 +1015,7 @@ function renderMobile(){
 }
 document.addEventListener("click",async e=>{const root=e.target.closest("#m-app");if(!root)return;
   const t=e.target.closest("[data-t]");if(t){st.m.tab=t.dataset.t;st.m.open=null;renderMobile();window.scrollTo(0,0);return;}
+  const pr=e.target.closest("[data-per]");if(pr){st.m.per=pr.dataset.per;renderMobile();return;}
   const iv=e.target.closest("[data-inv]");if(iv){st.m.inv=st.m.inv===iv.dataset.inv?null:iv.dataset.inv;renderMobile();const c=document.querySelector("#m-content .m-hero");if(c)c.scrollIntoView({behavior:"smooth",block:"start"});return;}
   const tb=e.target.closest("[data-tab]");if(tb){st.m.tab=tb.dataset.tab;renderMobile();window.scrollTo(0,0);return;}
   const sc=e.target.closest("[data-sc]");if(sc){st.m.scope=sc.dataset.sc;st.m.open=null;renderMobile();return;}
