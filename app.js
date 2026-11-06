@@ -107,9 +107,9 @@ const eur=new Intl.NumberFormat("pt-PT",{style:"currency",currency:"EUR"});
 const eur0=new Intl.NumberFormat("pt-PT",{style:"currency",currency:"EUR",maximumFractionDigits:0});
 const pct=new Intl.NumberFormat("pt-PT",{style:"percent",minimumFractionDigits:1,maximumFractionDigits:1});
 const $=id=>document.getElementById(id);
-const INV_COLOR={"Cripto":"var(--c-cripto)","ETF Core":"var(--c-core)","ETF Agressivo":"var(--c-agr)","XTB Manual":"var(--c-man)"};
-const INV_ORDER=["Cripto","ETF Core","ETF Agressivo","XTB Manual"];
-const SLUG={"Cripto":"cri","ETF Core":"core","ETF Agressivo":"agr","XTB Manual":"man"};
+const INV_COLOR={"Cripto":"var(--c-cripto)","ETF Core":"var(--c-core)","ETF Agressivo":"var(--c-agr)","XTB Manual":"var(--c-man)","PPR":"var(--c-ppr)"};
+const INV_ORDER=["Cripto","ETF Core","ETF Agressivo","XTB Manual","PPR"];
+const SLUG={"Cripto":"cri","ETF Core":"core","ETF Agressivo":"agr","XTB Manual":"man","PPR":"ppr"};
 function akey(cat,t){return cat+"~"+t;}
 function ativosByKey(){const m={};for(const id in st.ativos){const d=st.ativos[id];m[akey(d.categoria||"Cripto",d.ticker||id)]={id,doc:d};}return m;}
 const MES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
@@ -316,6 +316,10 @@ async function handleFile(file){
   try{
     const lib=await pdfLib();const buf=new Uint8Array(await file.arrayBuffer());
     const first=await (await (await lib.getDocument({data:buf.slice(),isEvalSupported:false}).promise).getPage(1)).getTextContent();
+    if(first.items.some(i=>/fundos Optimize|Optimize Investment Partners/i.test(i.str))){const r=await parseOptimize(lib,buf.slice());st.pending=r;$("imp-conta-wrap").hidden=true;
+      if(!r.fim||!r.fundos.length){msg.textContent="Não encontrei a situação detalhada dos PPR neste extrato da Optimize.";return;}
+      $("imp-info").textContent="Extrato Optimize de "+mesLabel(r.fim.slice(0,7))+(r.titular?" ("+r.titular+")":"")+": "+r.fundos.map(f=>f.nome+" "+eur.format(f.valor)).join(" · ")+". Atualiza o valor, o total entregue e a rentabilidade.";
+      $("imp-preview").hidden=false;msg.textContent="";return;}
     if(first.items.some(i=>/conta de criptomoedas/i.test(i.str))){const r=await parseCripto(lib,buf.slice());st.pending=r;$("imp-conta-wrap").hidden=true;
       if(!r.ops.length&&!Object.keys(r.val).length){msg.textContent="Não encontrei operações neste extrato de cripto.";return;}
       $("imp-info").textContent="Extrato de cripto da Revolut"+(r.periodo?" ("+fmtD(parseD(r.periodo.ini))+" a "+fmtD(parseD(r.periodo.fim))+")":"")+": "+r.ops.length+" operações, "+r.stk.length+" recompensas de staking. Atualiza os lotes com datas e quantidades reais e o valor atual.";
@@ -341,7 +345,7 @@ drop.addEventListener("drop",e=>{e.preventDefault();drop.classList.remove("over"
 $("imp-cancel").addEventListener("click",()=>{st.pending=null;$("imp-preview").hidden=true;$("imp-file").value="";});
 $("imp-go").addEventListener("click",async()=>{
   const r=st.pending;if(!r||!st.db)return;const btn=$("imp-go");btn.disabled=true;const msg=$("imp-msg");msg.textContent="A importar…";
-  if(r.tipo!=="revolut"){try{if(r.tipo==="xtb")await importXTB(r,msg);else await importCripto(r,msg);st.pending=null;$("imp-preview").hidden=true;$("imp-file").value="";}
+  if(r.tipo!=="revolut"){try{if(r.tipo==="xtb")await importXTB(r,msg);else if(r.tipo==="optimize")await importOptimize(r,msg);else await importCripto(r,msg);st.pending=null;$("imp-preview").hidden=true;$("imp-file").value="";}
     catch(e){msg.textContent="A importação parou a meio. Volta a importar o mesmo ficheiro para completar.";}finally{btn.disabled=false;}return;}
   const conta=$("imp-conta").value;const lista=rules();const ms=Object.keys(r.split).sort();
   let nMov=0,troTot=0,done=0;
@@ -381,6 +385,7 @@ function compute(){
   return assets;
 }
 function lotStatus(l,now){
+  if(l.categoria==="PPR")return {html:'<span class="chip na">regime PPR</span>',exempt:null};
   if(l.categoria!=="Cripto")return {html:'<span class="chip na">28% sempre</span>',exempt:null};
   if(!l.data)return {html:'<span class="chip miss">Data por confirmar</span>',exempt:null};
   const ex=addYear(l.data);
@@ -1006,6 +1011,38 @@ document.addEventListener("change",async e=>{const sel=e.target.closest("#m-app 
 $("m-back").addEventListener("click",()=>setFullPref(false));
 applyMode();
 
+/* ---------- PPR (extrato mensal Optimize) ---------- */
+const PPR_NOMES={AGRES:"Agressivo",AGRESSIVO:"Agressivo",ATIVO:"Ativo",EQUIL:"Equilibrado",EQUILIBRADO:"Equilibrado",MODER:"Moderado",MODERADO:"Moderado",LEOPARDO:"Leopardo"};
+function pprGroups(){for(const id in st.ativos){const a=st.ativos[id];if(a.categoria!=="PPR")continue;const t=a.ticker||id;
+  if(!GROUPS.some(g=>g[0]===t))GROUPS.push([t,(a.nome||t)+(a.titular?" · "+a.titular:""),"PPR",t]);}}
+async function parseOptimize(lib,buf){
+  const doc=await lib.getDocument({data:buf,isEvalSupported:false}).promise;const lines=[];
+  for(let p=1;p<=doc.numPages;p++){const page=await doc.getPage(p);const tc=await page.getTextContent();
+    const it=tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({x:i.transform[4],y:i.transform[5],s:i.str}));it.sort((a,b)=>b.y-a.y||a.x-b.x);
+    let cur=null;for(const i of it){if(!cur||Math.abs(cur.y-i.y)>3){cur={y:i.y,p:[]};lines.push(cur);}cur.p.push(i);}}
+  const txt=lines.map(l=>l.p.sort((a,b)=>a.x-b.x).map(i=>i.s).join(" ").replace(/\s+/g," ").trim());
+  const n=s=>parseFloat(String(s).replace(/,/g,""));
+  let fim=null,titular="";const fundos=[];
+  for(const t of txt){let m;
+    if((m=t.match(/Total a (\d{1,2}) de ([A-Za-zçÇ]+) de (\d{4})/))){const mi=MES.indexOf(m[2].toLowerCase());if(mi>=0)fim=m[3]+"-"+String(mi+1).padStart(2,"0")+"-"+String(m[1]).padStart(2,"0");}
+    if(!titular&&(m=t.match(/^\d{8}\s+([A-ZÀ-Ý][a-zà-ÿ]+)/)))titular=m[1];
+    if((m=t.match(/^Optimize PPR ([A-Za-zÀ-ÿ]+)\s+([\d.,]+)\s+([\d.,]+)\s*€\s+([\d.,]+)\s*€\s+(-?[\d.,]+)\s*€\s+(-?[\d.,]+)\s*%\s+([\d.,]+)\s*€/))){
+      const k=m[1].toUpperCase();fundos.push({ticker:"OPT-PPR-"+(PPR_NOMES[k]||m[1]).toUpperCase(),nome:"PPR "+(PPR_NOMES[k]||m[1]),qty:n(m[2]),custo:n(m[3]),cotacao:n(m[4]),valia:n(m[5]),valor:n(m[7])});}}
+  return {tipo:"optimize",fim,titular,fundos};
+}
+async function importOptimize(r,msg){
+  const mes=r.fim.slice(0,7);const H=JSON.parse(JSON.stringify(histGroups()));let n=0;
+  for(const f of r.fundos){const custoTot=r2(f.qty*f.custo);
+    const AK=ativosByKey()[akey("PPR",f.ticker)];const aid=AK?AK.id:"ppr~"+f.ticker;
+    const atual=AK&&AK.doc.atualizado&&AK.doc.atualizado>r.fim;
+    if(!atual){await st.db.collection("ativos").doc(aid).set({ticker:f.ticker,categoria:"PPR",nome:f.nome,titular:r.titular||"",valorAtual:r2(f.valor),unidades:f.qty,atualizado:r.fim});n++;}
+    await st.db.collection("lotes").doc("opt-"+f.ticker).set({data:null,ticker:f.ticker,categoria:"PPR",plataforma:"Optimize",investido:custoTot,quantidade:f.qty,nota:"Total entregue (custo médio "+f.custo.toFixed(4)+" €/UP)"+(r.titular?" · "+r.titular:""),origem:"optimize"});n++;
+    const ser=H[f.ticker]=H[f.ticker]||{};const prev=Object.keys(ser).filter(m=>m<mes&&ser[m].c!=null).sort().pop();
+    ser[mes]={...(ser[mes]||{}),v:r2(f.valor),c:custoTot};if(prev)ser[mes].a=r2(custoTot-ser[prev].c);delete ser[mes].est;delete ser[mes].parcial;}
+  await st.db.collection("historico").doc("carteira").set({...(st.hist||{}),grupos:H});
+  msg.textContent="PPR importado: "+r.fundos.map(f=>f.nome+" "+eur.format(f.valor)).join(" · ")+" (fecho de "+mesLabel(mes)+").";
+}
+
 /* ---------- sincronização Revolut ---------- */
 function syncInfo(){const s=st.sync;if(!s)return null;
   const quando=s.ultimaExec?new Date(s.ultimaExec):null;const dias=s.valido_ate?Math.floor((new Date(s.valido_ate)-Date.now())/864e5):null;
@@ -1025,7 +1062,7 @@ $("l-data").value=todayStr();$("r-data").value=todayStr();route();render();
   const done=(k,s)=>{if(!s.metadata.fromCache)st.loaded[k]=true;if(need.every(x=>st.loaded[x])){clearTimeout(timer);setStatus("Atualizado às "+new Date().toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}));}};
   const onErr=e=>{clearTimeout(timer);setStatus(e&&e.code==="revoked"?"O acesso aos registos terminou.":"Não foi possível carregar os registos.");};
   db.collection("lotes").onSnapshot(s=>{st.lotes=s.docs.map(d=>({id:d.id,...d.data()}));done("l",s);renderInv();},onErr);
-  db.collection("ativos").onSnapshot(s=>{const m={};for(const d of s.docs)m[d.id]=d.data();st.ativos=m;done("a",s);renderInv();$("fe-rows").dataset.m="";renderFecho();},onErr);
+  db.collection("ativos").onSnapshot(s=>{const m={};for(const d of s.docs)m[d.id]=d.data();st.ativos=m;pprGroups();done("a",s);renderInv();$("fe-rows").dataset.m="";renderFecho();},onErr);
   db.collection("realizados").onSnapshot(s=>{st.real=s.docs.map(d=>({id:d.id,...d.data()}));done("r",s);renderInv();},onErr);
   db.collection("meses").onSnapshot(s=>{const m={};for(const d of s.docs)m[d.id]=d.data();st.meses=m;done("m",s);renderFin();renderOrc();renderPlano();renderPoup();},onErr);
   db.doc("config/categorias").onSnapshot(d=>{setCustomCats(d.exists?d.data().lista:[]);done("k",d);renderCats();refreshCatSelects();renderFin();renderOrc();renderPlano();renderPoup();},onErr);

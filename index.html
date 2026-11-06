@@ -22,7 +22,7 @@
   --bg:#f4f6f9; --surface:#ffffff; --sunk:#eaeef4; --line:#d6dce6;
   --fg:#16202e; --muted:#5b6778; --accent:#1f4fd1; --accent-soft:#e3ebff; --on-accent:#ffffff;
   --pos:#0f7a4a; --pos-soft:#ddf3e8; --neg:#b42a2a; --neg-soft:#fbe4e2; --warn:#9a6200; --warn-soft:#fdf0d6;
-  --c-cripto:#1f4fd1; --c-core:#0f7a6a; --c-agr:#c2551a; --c-man:#7a4fb8; --c-in:#0f7a4a; --c-out:#b8c2d3;
+  --c-cripto:#1f4fd1; --c-core:#0f7a6a; --c-agr:#c2551a; --c-man:#7a4fb8; --c-ppr:#a66f00; --c-in:#0f7a4a; --c-out:#b8c2d3;
   --f-display:"Familjen Grotesk",ui-sans-serif,system-ui,sans-serif;
   --f-body:"Public Sans",ui-sans-serif,system-ui,sans-serif;
   --f-num:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -31,12 +31,12 @@
   --bg:#0e131b; --surface:#151c27; --sunk:#1c2532; --line:#2a3546;
   --fg:#e6ebf3; --muted:#97a3b6; --accent:#7ea2ff; --accent-soft:#1c2a4d; --on-accent:#0e131b;
   --pos:#4fd197; --pos-soft:#123526; --neg:#ff8a80; --neg-soft:#3d1a1a; --warn:#f2b553; --warn-soft:#3a2b10;
-  --c-cripto:#7ea2ff; --c-core:#4ec9b4; --c-agr:#f39a5b; --c-man:#b996f0; --c-in:#4fd197; --c-out:#4a5870; color-scheme:dark}}
+  --c-cripto:#7ea2ff; --c-core:#4ec9b4; --c-agr:#f39a5b; --c-man:#b996f0; --c-ppr:#e2b04a; --c-in:#4fd197; --c-out:#4a5870; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0e131b; --surface:#151c27; --sunk:#1c2532; --line:#2a3546;
   --fg:#e6ebf3; --muted:#97a3b6; --accent:#7ea2ff; --accent-soft:#1c2a4d; --on-accent:#0e131b;
   --pos:#4fd197; --pos-soft:#123526; --neg:#ff8a80; --neg-soft:#3d1a1a; --warn:#f2b553; --warn-soft:#3a2b10;
-  --c-cripto:#7ea2ff; --c-core:#4ec9b4; --c-agr:#f39a5b; --c-man:#b996f0; --c-in:#4fd197; --c-out:#4a5870; color-scheme:dark}
+  --c-cripto:#7ea2ff; --c-core:#4ec9b4; --c-agr:#f39a5b; --c-man:#b996f0; --c-ppr:#e2b04a; --c-in:#4fd197; --c-out:#4a5870; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5}
 .wrap{max-width:1180px;margin:0 auto;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:22px}
@@ -320,7 +320,7 @@ body.phone:not(.m-mode) .m-back{display:block}
         <section class="block">
           <h2>Importar extrato</h2>
           <div class="drop" id="drop">
-            <span class="note">Aceita três ficheiros: o extrato de EUR da Revolut (PDF, conta pessoal ou conjunta), o extrato da conta de criptomoedas da Revolut (PDF) e o histórico da conta XTB (Excel .xlsx). A página reconhece cada um. Reimportar atualiza sem duplicar e mantém o que mudaste à mão.</span>
+            <span class="note">Aceita: o extrato de EUR da Revolut (PDF, conta pessoal ou conjunta), o extrato da conta de criptomoedas da Revolut (PDF), o histórico da conta XTB (Excel .xlsx) e o extrato mensal da Optimize (PDF, PPR). A página reconhece cada um. Reimportar atualiza sem duplicar e mantém o que mudaste à mão.</span>
             <input id="imp-file" type="file" accept="application/pdf,.pdf,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="Escolher extrato">
           </div>
           <div id="imp-preview" hidden>
@@ -330,7 +330,7 @@ body.phone:not(.m-mode) .m-back{display:block}
           </div>
           <p class="formmsg" id="imp-msg" role="status"></p>
           <p class="note" id="sync-line" hidden></p>
-          <p class="note">A Revolut (pessoal e conjunta) sincroniza sozinha de 4 em 4 horas; o PDF só é preciso se a sincronização falhar. Para a XTB e a cripto, exporta nos primeiros 5 dias do mês.</p>
+          <p class="note">A Revolut (pessoal e conjunta) sincroniza sozinha de 4 em 4 horas; o PDF só é preciso se a sincronização falhar. Para a XTB, a cripto e o PPR (extrato mensal da Optimize, em PDF), importa nos primeiros dias do mês.</p>
           <p class="note" hidden>Dica: exporta os extratos nos primeiros 5 dias do mês. Os valores da XTB e da cripto ficam registados como o fecho do mês anterior.</p>
         </section>
 
@@ -550,6 +550,7 @@ body.phone:not(.m-mode) .m-back{display:block}
               <button type="button" data-f="ETF Core" aria-pressed="false">ETF Core</button>
               <button type="button" data-f="ETF Agressivo" aria-pressed="false">ETF Agressivo</button>
               <button type="button" data-f="XTB Manual" aria-pressed="false">XTB Manual</button>
+              <button type="button" data-f="PPR" aria-pressed="false">PPR</button>
             </div>
           </div>
           <div class="tablewrap"><table>
@@ -591,7 +592,7 @@ body.phone:not(.m-mode) .m-back{display:block}
             </div>
             <datalist id="tickers"></datalist>
             <div class="row2">
-              <label for="l-cat">Categoria<select id="l-cat"><option>Cripto</option><option>ETF Core</option><option>ETF Agressivo</option><option>XTB Manual</option></select></label>
+              <label for="l-cat">Categoria<select id="l-cat"><option>Cripto</option><option>ETF Core</option><option>ETF Agressivo</option><option>XTB Manual</option><option>PPR</option></select></label>
               <label for="l-plat">Plataforma<select id="l-plat"><option>Revolut</option><option>Revolut X</option><option>XTB</option><option>Outra</option></select></label>
             </div>
             <div class="row2">
@@ -629,8 +630,8 @@ body.phone:not(.m-mode) .m-back{display:block}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=3"></script>
-<script src="shell.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="firebase-config.js?v=4"></script>
+<script src="shell.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
