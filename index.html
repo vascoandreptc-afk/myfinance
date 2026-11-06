@@ -157,6 +157,22 @@ body{margin:0;min-height:100vh}
 img{max-width:100%}
 [hidden]{display:none!important}
 button,input,select{touch-action:manipulation}
+.gear{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;color:var(--muted);background:var(--sunk)}
+.gear svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.gear:hover,.gear[aria-current="page"]{color:var(--accent);background:var(--accent-soft)}
+.defs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;align-items:start}
+@media (max-width:1100px){.defs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:760px){.defs{grid-template-columns:minmax(0,1fr)}}
+.bv-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:4px 0 10px}
+.bv-kpis .num{font-size:1.2rem;display:block}
+.bv-sel{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.catrow.bvr{grid-template-columns:minmax(0,170px) minmax(0,1fr) 140px 116px}
+.catrow .track{position:relative}
+.catrow .track i{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--fg);opacity:.55}
+.catrow.bvr .track{overflow:visible}
+.catrow.bvr .chipc{text-align:right}
+#bv-chart rect[data-bm]{cursor:pointer}
+@media (max-width:760px){.catrow.bvr{grid-template-columns:minmax(0,110px) minmax(0,1fr) auto}.catrow.bvr .chipc{display:none}.bv-kpis{grid-template-columns:minmax(0,1fr)}}
 .acct{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--muted)}
 #gate{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 #gate .card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:26px 22px;display:flex;flex-direction:column;gap:16px}
@@ -260,7 +276,6 @@ body.phone:not(.m-mode) .m-back{display:block}
   </div>
 </div>
 
-
 <div id="m-app"><header class="m-head"><span class="m-logo"><img src="icons/icon-192.png" alt=""> MyFinance</span></header><main id="m-content"></main><nav id="m-tabs" aria-label="Secções"><button type="button" data-t="resumo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg><span>Resumo</span></button><button type="button" data-t="orcamento"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span>Orçamento</span></button><button type="button" data-t="poupanca"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10.5h4a1.5 1.5 0 010 3h-3a1.5 1.5 0 000 3h4"/></svg><span>Poupança</span></button><button type="button" data-t="investimentos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg><span>Investir</span></button><button type="button" data-t="mais"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg><span>Mais</span></button></nav></div>
 <div class="wrap">
   <button type="button" id="m-back" class="m-back">‹ Voltar ao resumo</button>
@@ -270,7 +285,7 @@ body.phone:not(.m-mode) .m-back{display:block}
       <h1>MyFinance</h1>
       <p>O dinheiro do mês a partir dos extratos, e a carteira com a contagem dos 365 dias da cripto.</p>
     </div>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><div class="acct" id="acct" hidden><span id="who"></span><button type="button" class="btn-link" id="logout">Sair</button></div><div id="status">A carregar os teus registos…</div></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><div class="acct" id="acct" hidden><span id="who"></span><button type="button" class="btn-link" id="logout">Sair</button></div><div style="display:flex;align-items:center;gap:10px"><div id="status">A carregar os teus registos…</div><a href="#definicoes" id="tab-definicoes" class="gear" aria-label="Definições: importar extratos, cópia de segurança, categorias e regras" title="Definições"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg></a></div></div>
   </header>
 
   <nav class="tabs" aria-label="Secções">
@@ -300,10 +315,13 @@ body.phone:not(.m-mode) .m-back{display:block}
 
     <div class="grid">
       <div class="main">
-        <section class="block">
-          <div class="block-head"><h2>Despesas por categoria</h2><span class="note" id="cat-note">Toca numa categoria para ver os movimentos</span></div>
+        <section class="block" id="bv">
+          <div class="block-head"><h2>Despesas vs orçamento</h2><span class="legend"><span><i style="background:var(--pos)"></i>Dentro</span><span><i style="background:var(--warn)"></i>Perto do limite</span><span><i style="background:var(--neg)"></i>Acima</span><span><i style="background:var(--muted)"></i>Orçamento</span></span></div>
+          <div id="bv-head"></div>
+          <div class="chart" id="bv-chart"></div>
           <div class="catrows" id="cat-rows"></div>
           <div id="cat-empty" class="empty" hidden>Sem despesas neste mês.</div>
+          <p class="note" id="cat-note">Clica numa categoria para ver o gráfico e os movimentos só dessa categoria. Clica outra vez para voltar ao total.</p>
         </section>
 
         <section class="block">
@@ -326,8 +344,23 @@ body.phone:not(.m-mode) .m-back{display:block}
       </div>
 
       <aside class="side">
+
         <section class="block">
-          <h2>Importar extrato</h2>
+          <h2>Maiores despesas</h2>
+          <div id="top-list" class="catrows"></div>
+        </section>
+
+      </aside>
+    </div>
+  </div>
+
+  <!-- ============ DEFINIÇÕES ============ -->
+  <div class="view" id="v-definicoes" hidden>
+    <div class="block-head"><h2 style="font-size:1.35rem">Definições</h2><a class="btn-link" href="#financas">‹ Voltar</a></div>
+    <div class="defs">
+      <div class="side">
+        <section class="block">
+          <h2>Importar extratos</h2>
           <div class="drop" id="drop">
             <span class="note">Aceita: o extrato de EUR da Revolut (PDF, conta pessoal ou conjunta), o extrato da conta de criptomoedas da Revolut (PDF), o histórico da conta XTB (Excel .xlsx) e o extrato mensal da Optimize (PDF, PPR). A página reconhece cada um. Reimportar atualiza sem duplicar e mantém o que mudaste à mão.</span>
             <input id="imp-file" type="file" accept="application/pdf,.pdf,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="Escolher extrato">
@@ -342,19 +375,14 @@ body.phone:not(.m-mode) .m-back{display:block}
           <p class="note">A Revolut (pessoal e conjunta) sincroniza sozinha de 4 em 4 horas; o PDF só é preciso se a sincronização falhar. Para a XTB, a cripto e o PPR (extrato mensal da Optimize, em PDF), importa nos primeiros dias do mês.</p>
           <p class="note" hidden>Dica: exporta os extratos nos primeiros 5 dias do mês. Os valores da XTB e da cripto ficam registados como o fecho do mês anterior.</p>
         </section>
-
-        <section class="block">
-          <h2>Maiores despesas</h2>
-          <div id="top-list" class="catrows"></div>
-        </section>
-
         <section class="block">
           <h2>Cópia de segurança</h2>
           <div class="bk-row"><button class="btn-ghost" type="button" id="bk-export">Descarregar cópia</button><label class="btn-ghost" for="bk-file">Importar cópia…</label><input id="bk-file" type="file" accept="application/json,.json" hidden></div>
           <div class="formmsg" id="bk-msg" role="status"></div>
           <p class="note">Descarrega uma cópia de vez em quando e guarda-a no iCloud Drive. Importar uma cópia repõe os registos que ela contém.</p>
         </section>
-
+      </div>
+      <div class="side">
         <section class="block">
           <h2>Categorias</h2>
           <form id="f-cat" novalidate>
@@ -368,7 +396,8 @@ body.phone:not(.m-mode) .m-back{display:block}
           <div class="rulelist" id="cat-list"></div>
           <p class="note">Despesa entra nas despesas e nos orçamentos; Poupança entra na taxa de poupança; Reserva e Transferência interna ficam fora das contas. Para tirar um movimento da análise sem mudar a categoria, usa "Excluir" na tabela de movimentos.</p>
         </section>
-
+      </div>
+      <div class="side">
         <section class="block">
           <div class="block-head"><h2>Regras de categoria</h2><span class="note" id="rule-count"></span></div>
           <form id="f-rule" novalidate>
@@ -383,10 +412,9 @@ body.phone:not(.m-mode) .m-back{display:block}
           <div class="rulelist" id="rule-list"></div>
           <p class="note">A primeira regra que corresponde ganha. As novas ficam no topo e são aplicadas a todos os meses, exceto a movimentos que alteraste à mão.</p>
         </section>
-      </aside>
+      </div>
     </div>
   </div>
-
 
   <!-- ============ ORÇAMENTOS ============ -->
   <div class="view" id="v-orcamentos" hidden>
@@ -417,7 +445,6 @@ body.phone:not(.m-mode) .m-back{display:block}
       <p class="note">Os valores vêm do orçamento do ano (vista Ano). O gasto é a média dos 3 últimos meses completos até ao mês escolhido, e é com ela que se calculam o restante e o estado. "No ano" conta os meses completos em que ficaste dentro do valor.</p>
     </section>
   </div>
-
 
   <!-- ============ PLANO ANUAL ============ -->
   <div class="view" id="v-plano" hidden>
@@ -519,7 +546,6 @@ body.phone:not(.m-mode) .m-back{display:block}
       <div class="bar" id="alloc-bar"></div>
       <div class="legend" id="alloc-legend"></div>
     </section>
-
 
     <section class="block">
       <div class="block-head"><h2>Rentabilidade</h2><span class="note" id="rent-note"></span></div>
@@ -642,8 +668,8 @@ body.phone:not(.m-mode) .m-back{display:block}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=15"></script>
-<script src="shell.js?v=15"></script>
-<script src="app.js?v=15"></script>
+<script src="firebase-config.js?v=16"></script>
+<script src="shell.js?v=16"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>
