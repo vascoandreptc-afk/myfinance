@@ -938,9 +938,13 @@ function tinyLines(pts){pts=mPeriodFilter(pts);if(pts.length<2)return "";const W
   return s+'</svg>';}
 function mGroupSeries(id){const ser=histGroups()[id]||{};const ms=Object.keys(ser).sort().filter(m=>ser[m].v!=null);const pts=[];let base=null,acc=0,last=null;
   for(const m of Object.keys(ser).sort()){if(last!==null)acc+=+ser[m].a||0;if(ser[m].v==null)continue;if(base===null)base=ser[m].v;pts.push({m,v:ser[m].v,a:base+acc});last=m;}return pts;}
-function mInvestSeries(){const H=histGroups();const allM=[...new Set(Object.values(H).flatMap(s=>Object.keys(s)))].sort();
-  const full=GROUPS.map(g=>g[0]).filter(id=>H[id]&&allM.every(m=>H[id][m]&&H[id][m].v!=null));const pts=[];let base=null,acc=0;
-  for(const m of allM){let v=0;for(const id of full)v+=H[id][m].v;if(base===null)base=v;else for(const id of full)acc+=+H[id][m].a||0;pts.push({m,v,a:base+acc});}return pts;}
+function mInvestSeries(){const H=histGroups();const ids=GROUPS.map(g=>g[0]).filter(id=>H[id]);
+  const allM=[...new Set(ids.flatMap(id=>Object.keys(H[id]).filter(m=>H[id][m].v!=null)))].sort();const pts=[];const lastV={},started={};let accA=0;
+  for(const m of allM){for(const id of ids){const e=H[id][m];if(!e)continue;
+      if(!started[id]){if(e.v!=null){started[id]=true;accA+=e.v;lastV[id]=e.v;}continue;}
+      accA+=+e.a||0;if(e.v!=null)lastV[id]=e.v;}
+    let v=0;for(const id in lastV)v+=lastV[id];pts.push({m,v:r2(v),a:r2(accA)});}
+  return pts;}
 
 function renderMobile(){
   const el=$("m-content");if(!el)return;const tab=st.m.tab;
@@ -1054,7 +1058,7 @@ function renderDeskInvChart(){
   const last=f[f.length-1];
   let h='<div class="block-head" style="margin-top:6px"><div><div class="eyebrow">'+(sel?'<i class="m-dot" style="background:'+INV_COLOR[sel[2]]+'"></i>'+esc(sel[1]):"Carteira total")+'</div>'+
     (last?'<div class="num" style="font-size:1.25rem">'+eur.format(last.v)+' <span class="note '+cls(last.v-last.a)+'">'+signed(last.v-last.a)+' face ao aportado</span></div>':'')+'</div>'+chips+'</div>';
-  h+=f.length>1?bigLines(pts)+'<p class="note">'+mLbl(f[0].m,true)+' a '+mLbl(last.m,true)+' · '+f.length+' fechos mensais · '+(sel?'clica outra vez na linha para voltar ao total':'clica numa linha da tabela para ver só esse investimento')+'</p>'+(()=>{if(sel)return "";const allM=[...new Set(Object.values(H).flatMap(x=>Object.keys(x)))];const ex=GROUPS.filter(g=>H[g[0]]&&!allM.every(m=>H[g[0]][m]&&H[g[0]][m].v!=null)).map(g=>g[1]);return ex.length?'<p class="note">O total do gráfico não inclui '+esc(ex.join(", "))+', por ainda não terem valor em todos os meses. Clica na linha de cada um para o ver.</p>':"";})():'<div class="empty">Ainda há poucos fechos mensais para desenhar este gráfico.</div>';
+  h+=f.length>1?bigLines(pts)+'<p class="note">'+mLbl(f[0].m,true)+' a '+mLbl(last.m,true)+' · '+f.length+' fechos mensais · '+(sel?'clica outra vez na linha para voltar ao total':'clica numa linha da tabela para ver só esse investimento')+'</p>'+(sel?"":'<p class="note">No total, um mês sem valor registado de um investimento usa o último valor conhecido; a entrada de um investimento novo conta como aporte.</p>'):'<div class="empty">Ainda há poucos fechos mensais para desenhar este gráfico.</div>';
   el.innerHTML=h;
   // linhas da tabela clicáveis
   const ids=GROUPS.filter(g=>H[g[0]]).map(g=>g[0]);const rows=[...document.querySelectorAll("#t-rent tr")];
@@ -1110,6 +1114,13 @@ function syncInfo(){const s=st.sync;if(!s)return null;
   const alerta=!!s.erro||(dias!=null&&dias<=14);return {txt,alerta,dias,erro:s.erro};}
 function renderSync(){const i=syncInfo();const el=$("sync-line");if(el){el.hidden=!i;if(i){el.textContent=i.txt;el.className="note "+(i.alerta?"neg":"");}}scheduleM&&scheduleM();}
 
+/* ---------- erros: um erro ao desenhar não pode parar a base de dados ---------- */
+st.errs=[];
+function showErr(e,where){const msg=(e&&e.message)||String(e);if(st.errs.includes(msg))return;st.errs.push(msg);console.error(where||"erro",e);
+  try{const el=$("status");el.textContent="Erro na app"+(where?" ("+where+")":"")+": "+msg+" — envia esta mensagem ao Claude.";el.style.color="var(--neg)";}catch(_){}}
+function safeCb(fn){return function(){try{return fn.apply(this,arguments);}catch(e){showErr(e,"ao atualizar");}};}
+window.addEventListener("error",e=>showErr(e.error||e.message,"página"));
+window.addEventListener("unhandledrejection",e=>showErr(e.reason,"promessa"));
 /* ---------- boot ---------- */
 function render(){renderCats();renderFin();renderOrc();renderPlano();renderPoup();renderInv();renderRent();}
 function setReadonly(){st.readonly=true;for(const f of document.querySelectorAll("form input,form select,form button,#imp-file"))f.disabled=true;setStatus("Só leitura: apenas o dono pode alterar estes registos.");render();}
@@ -1123,17 +1134,17 @@ $("l-data").value=todayStr();$("r-data").value=todayStr();route();render();
     setStatus("Sem ligação ao servidor: estás a ver os dados guardados neste dispositivo. A rede onde estás (por exemplo a da empresa) pode estar a bloquear firestore.googleapis.com. Experimenta outra rede.");})(),10000);
   const done=(k,s)=>{if(!s.metadata.fromCache)st.loaded[k]=true;if(need.every(x=>st.loaded[x])){clearTimeout(timer);setStatus("Atualizado às "+new Date().toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}));}};
   const onErr=e=>{clearTimeout(timer);setStatus(e&&e.code==="revoked"?"O acesso aos registos terminou.":"Não foi possível carregar os registos.");};
-  db.collection("lotes").onSnapshot(s=>{st.lotes=s.docs.map(d=>({id:d.id,...d.data()}));done("l",s);renderInv();},onErr);
-  db.collection("ativos").onSnapshot(s=>{const m={};for(const d of s.docs)m[d.id]=d.data();st.ativos=m;pprGroups();done("a",s);renderInv();$("fe-rows").dataset.m="";renderFecho();},onErr);
-  db.collection("realizados").onSnapshot(s=>{st.real=s.docs.map(d=>({id:d.id,...d.data()}));done("r",s);renderInv();},onErr);
-  db.collection("meses").onSnapshot(s=>{const m={};for(const d of s.docs)m[d.id]=d.data();st.meses=m;done("m",s);renderFin();renderOrc();renderPlano();renderPoup();},onErr);
-  db.doc("config/categorias").onSnapshot(d=>{setCustomCats(d.exists?d.data().lista:[]);done("k",d);renderCats();refreshCatSelects();renderFin();renderOrc();renderPlano();renderPoup();},onErr);
-  db.collection("planos").onSnapshot(s=>{const m={};for(const d of s.docs)m[d.id]=d.data();st.planos=m;done("p",s);renderPlano();renderOrc();},onErr);
-  db.doc("config/orcamentos").onSnapshot(d=>{st.orc=d.exists?d.data():null;done("o",d);renderOrc();},onErr);
-  db.doc("config/objetivos").onSnapshot(d=>{st.goals=d.exists?d.data():null;done("g",d);renderPoup();},onErr);
-  db.doc("historico/carteira").onSnapshot(d=>{st.hist=d.exists?d.data():null;done("h",d);renderRent();},onErr);
-  db.doc("sync/revolut").onSnapshot(d=>{st.sync=d.exists?d.data():null;renderSync();},()=>{});
-  db.doc("config/regras").onSnapshot(d=>{st.regras=d.exists&&Array.isArray(d.data().lista)?d.data().lista:null;done("c",d);renderFin();},onErr);
+  db.collection("lotes").onSnapshot(safeCb(s=>{st.lotes=s.docs.map(d=>({id:d.id,...d.data()}));done("l",s);renderInv();}),onErr);
+  db.collection("ativos").onSnapshot(safeCb(s=>{const m={};for(const d of s.docs)m[d.id]=d.data();st.ativos=m;pprGroups();done("a",s);renderInv();$("fe-rows").dataset.m="";renderFecho();}),onErr);
+  db.collection("realizados").onSnapshot(safeCb(s=>{st.real=s.docs.map(d=>({id:d.id,...d.data()}));done("r",s);renderInv();}),onErr);
+  db.collection("meses").onSnapshot(safeCb(s=>{const m={};for(const d of s.docs)m[d.id]=d.data();st.meses=m;done("m",s);renderFin();renderOrc();renderPlano();renderPoup();}),onErr);
+  db.doc("config/categorias").onSnapshot(safeCb(d=>{setCustomCats(d.exists?d.data().lista:[]);done("k",d);renderCats();refreshCatSelects();renderFin();renderOrc();renderPlano();renderPoup();}),onErr);
+  db.collection("planos").onSnapshot(safeCb(s=>{const m={};for(const d of s.docs)m[d.id]=d.data();st.planos=m;done("p",s);renderPlano();renderOrc();}),onErr);
+  db.doc("config/orcamentos").onSnapshot(safeCb(d=>{st.orc=d.exists?d.data():null;done("o",d);renderOrc();}),onErr);
+  db.doc("config/objetivos").onSnapshot(safeCb(d=>{st.goals=d.exists?d.data():null;done("g",d);renderPoup();}),onErr);
+  db.doc("historico/carteira").onSnapshot(safeCb(d=>{st.hist=d.exists?d.data():null;done("h",d);renderRent();}),onErr);
+  db.doc("sync/revolut").onSnapshot(safeCb(d=>{st.sync=d.exists?d.data():null;renderSync();}),()=>{});
+  db.doc("config/regras").onSnapshot(safeCb(d=>{st.regras=d.exists&&Array.isArray(d.data().lista)?d.data().lista:null;done("c",d);renderFin();}),onErr);
   try{const u=await c.use("user");if(u&&typeof u.isOwner==="function"&&(await u.isOwner())===false)setReadonly();}catch(e){}
 })();
 })();
