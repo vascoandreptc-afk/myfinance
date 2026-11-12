@@ -43,7 +43,7 @@ https://vascoandreptc-afk.github.io/myfinance/ · Português de Portugal em toda
   Autorização válida até ~maio de 2027: renovar com "1 · Autorizar Revolut" e "2 · Concluir autorização" (código).
 - "Atualizar investimentos" (6h37 e 18h37 UTC, `src/investimentos.js`), cada passo só corre se tiver os segredos:
   - **email** (`GMAIL_USER`, `GMAIL_APP_PASSWORD`): caixa Gmail dedicada que recebe, por reencaminhamento, os emails da
-    XTB e da Optimize; lê os anexos por IMAP e importa-os com `src/importadores.js` deste repositório (checkout em `./app`).
+    XTB; lê os anexos por IMAP e importa-os com `src/importadores.js` deste repositório (checkout em `./app`).
     Anexos não reconhecidos ficam em `sync/email.desconhecidos` (amostra de texto) para se escrever o leitor.
     A XTB envia por email a **confirmação das ordens executadas** (PDF com palavra-passe → segredo `XTB_PDF_PASSWORD`):
     compras exatas por ETF + valor da conta, mas não o valor por posição. Vira lotes `origem:"xtb-conf"`; o Excel da XTB
@@ -55,6 +55,9 @@ https://vascoandreptc-afk.github.io/myfinance/ · Português de Portugal em toda
     repartidos pelos planos (aportes do último mês) e ETF (peso no valor), cotações do Yahoo. Escreve `valorEstimado`/
     `estimadoEm` nos ativos (a app usa-os só se forem mais recentes do que `atualizado`), lotes `origem:"xtb-est"` e meses
     `est:true` no histórico. O extrato real apaga tudo isto.
+  - **ppr**: a Optimize **não** envia o extrato por email (só avisa). Valor diário = unidades do último extrato importado
+    (`ativos.unidades`) × cotação do Yahoo (`0P0001FEUD.F` Agressivo, `0P0000UP12.F` Ativo, `0P0000UP14.F` Moderado,
+    `0P0000UP13.F` Equilibrado — conferido: igual à cotação do extrato). Entregas novas exigem importar o extrato na app.
   - Estado de cada passo em `sync/investimentos` (mostrado nas Definições).
 - Segredos só em GitHub Secrets (nunca pedir nem mostrar): `EB_PRIVATE_KEY`, `FIREBASE_SERVICE_ACCOUNT` e os das
   importações automáticas. A XTB fechou a API em março de 2025.
