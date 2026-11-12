@@ -60,6 +60,9 @@ https://vascoandreptc-afk.github.io/myfinance/ · Português de Portugal em toda
   - **ppr**: a Optimize **não** envia o extrato por email (só avisa). Valor diário = unidades do último extrato importado
     (`ativos.unidades`) × cotação do Yahoo (`0P0001FEUD.F` Agressivo, `0P0000UP12.F` Ativo, `0P0000UP14.F` Moderado,
     `0P0000UP13.F` Equilibrado — conferido: igual à cotação do extrato). Entregas novas exigem importar o extrato na app.
+  - O email também recebe os **ZIP mensais da Revolut** (extratos EUR): só se usa o saldo da Poupança de Acesso Imediato
+    do resumo → `config/poupancas.<conta> = {saldo, data}`. A app soma as transferências sincronizadas depois dessa data
+    (sem juros até ao extrato seguinte). Importar um extrato EUR na app também atualiza este saldo.
   - Estado de cada passo em `sync/investimentos` (mostrado nas Definições).
 - Segredos só em GitHub Secrets (nunca pedir nem mostrar): `EB_PRIVATE_KEY`, `FIREBASE_SERVICE_ACCOUNT` e os das
   importações automáticas. A XTB fechou a API em março de 2025.
