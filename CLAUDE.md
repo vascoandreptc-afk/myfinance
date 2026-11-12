@@ -40,6 +40,8 @@ https://vascoandreptc-afk.github.io/myfinance/ · Português de Portugal em toda
 
 ## Repositório privado `myfinance-sync` (GitHub Actions)
 - "Sincronizar Revolut" de 4 em 4 h via Enable Banking (PSD2, só leitura): contas pessoal (…5731) e conjunta (…7083).
+  Na mesma autorização vêm os **cofres** (subcontas poupança, sem IBAN, tipo SVGS): o sync grava os saldos em `sync/cofres`
+  (`contas.<uid>.saldo`, `total`, `historico.<AAAA-MM>`); os nomes dados na app ficam em `config/cofres.nomes`.
   Autorização válida até ~maio de 2027: renovar com "1 · Autorizar Revolut" e "2 · Concluir autorização" (código).
 - "Atualizar investimentos" (6h37 e 18h37 UTC, `src/investimentos.js`), cada passo só corre se tiver os segredos:
   - **email** (`GMAIL_USER`, `GMAIL_APP_PASSWORD`): caixa Gmail dedicada que recebe, por reencaminhamento, os emails da

@@ -876,6 +876,20 @@ $("f-goal").addEventListener("submit",async e=>{e.preventDefault();if(!st.db)ret
   const g={mensal:num("g-mensal"),anual:num("g-anual"),taxa:num("g-taxa")};for(const k in g)if(g[k]==null)delete g[k];
   try{await st.db.collection("config").doc("objetivos").set({...(st.goals||{}),[st.ppScope]:g});$("g-msg").textContent="Objetivos guardados.";}catch(err){$("g-msg").textContent="Não foi possível guardar.";}});
 
+/* ================= COFRES (saldos das subcontas poupança da Revolut, via sincronização) ================= */
+function cofresLista(){const c=st.cofres;if(!c||!c.contas)return [];const nomes=(st.cofresNomes&&st.cofresNomes.nomes)||{};
+  return Object.entries(c.contas).map(([uid,x],i)=>({uid,nome:nomes[uid]||"Cofre "+String.fromCharCode(65+i),semNome:!nomes[uid],saldo:+x.saldo||0,data:x.data})).sort((a,b)=>b.saldo-a.saldo);}
+function cofresQuando(){const c=st.cofres;if(!c||!c.atualizado)return "";const d=new Date(c.atualizado);return "atualizado "+d.toLocaleDateString("pt-PT",{day:"2-digit",month:"short"})+" às "+d.toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"});}
+function renderCofres(){const blk=$("cofres-block");if(!blk)return;const L=cofresLista();blk.hidden=!L.length;if(!L.length)return;
+  $("cofres-total").textContent=eur.format(L.reduce((a,x)=>a+x.saldo,0));$("cofres-data").textContent=cofresQuando();
+  $("cofres-list").innerHTML=L.map(x=>'<div class="rule"><button type="button" class="btn-link" data-cofre="'+esc(x.uid)+'" title="Mudar o nome">'+esc(x.nome)+(x.semNome?' ✎':'')+'</button><span class="num">'+eur.format(x.saldo)+'</span></div>').join("");
+  scheduleM&&scheduleM();}
+function cofresMobile(){const L=cofresLista();if(!L.length)return "";
+  return '<div class="m-card"><div class="eyebrow">Cofres</div><div class="m-mid">'+eur0.format(L.reduce((a,x)=>a+x.saldo,0))+'</div>'+L.map(x=>'<div class="m-row"><span>'+esc(x.nome)+'</span><span class="num">'+eur0.format(x.saldo)+'</span></div>').join("")+'<div class="m-sub">'+esc(cofresQuando())+'</div></div>';}
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-cofre]");if(!b||st.readonly)return;
+  const L=cofresLista();const x=L.find(y=>y.uid===b.dataset.cofre);const n=window.prompt("Nome deste cofre ("+eur.format(x.saldo)+"):",x.semNome?"":x.nome);if(n==null)return;
+  const nomes={...((st.cofresNomes&&st.cofresNomes.nomes)||{})};if(n.trim())nomes[x.uid]=n.trim().slice(0,40);else delete nomes[x.uid];
+  try{await st.db.collection("config").doc("cofres").set({nomes});}catch(err){showErr(err,"cofres");}});
 /* ================= RENTABILIDADE ================= */
 st.hist=null;
 const GROUPS=[["BTC","Bitcoin","Cripto","BTC"],["ADA","Cardano","Cripto","ADA"],["ETF Core","Plano Core","ETF Core",null],["ETF Agressivo","Plano Agressivo","ETF Agressivo",null],["XTB Manual","XTB carteira manual","XTB Manual",null]];
@@ -1123,6 +1137,7 @@ function renderMobile(){
       const g=goalFor(st.m.scope);const rate=s.entradas>0?s.poupado/s.entradas:null;
       h+='<div class="m-grid"><div class="m-card"><div class="eyebrow">Poupança</div><div class="m-mid">'+eur0.format(s.poupado)+'</div><div class="m-sub">'+(g.mensal?"objetivo "+eur0.format(g.mensal):"taxa "+pctOrDash(rate))+'</div>'+(g.mensal?mBar(s.poupado,g.mensal,s.poupado>=g.mensal?"var(--pos)":"var(--warn)"):"")+'</div>'+
         '<div class="m-card"><div class="eyebrow">Entradas</div><div class="m-mid">'+eur0.format(s.entradas)+'</div><div class="m-sub">investido '+eur0.format(s.investido)+'</div></div></div>';
+      h+=cofresMobile();
       const pts=mInvestSeries();const lp=pts[pts.length-1],pp=pts[pts.length-2];const dv=lp&&pp?(lp.v-pp.v)-(lp.a-pp.a):null;
       h+='<button type="button" class="m-card m-link" data-tab="investimentos"><div class="eyebrow">Investimentos</div><div class="m-mid">'+esc($("s-valor").textContent)+'</div><div class="m-sub '+(dv==null?"":cls(dv))+'">'+(dv==null?"":(dv>=0?"+":"−")+eur0.format(Math.abs(dv))+" no último mês, sem contar aportes")+'</div></button>';
       const top=Object.entries(s.cats).filter(([,v])=>v>0.5).sort((a,b)=>b[1]-a[1]).slice(0,5);
@@ -1266,6 +1281,8 @@ $("l-data").value=todayStr();$("r-data").value=todayStr();route();render();
   db.doc("config/objetivos").onSnapshot(safeCb(d=>{st.goals=d.exists?d.data():null;done("g",d);renderPoup();}),onErr);
   db.doc("historico/carteira").onSnapshot(safeCb(d=>{st.hist=d.exists?d.data():null;done("h",d);renderRent();}),onErr);
   db.doc("sync/investimentos").onSnapshot(safeCb(d=>{st.auto=d.exists?d.data():null;renderAuto();}),()=>{});
+  db.doc("sync/cofres").onSnapshot(safeCb(d=>{st.cofres=d.exists?d.data():null;renderCofres();}),()=>{});
+  db.doc("config/cofres").onSnapshot(safeCb(d=>{st.cofresNomes=d.exists?d.data():null;renderCofres();}),()=>{});
   db.doc("sync/revolut").onSnapshot(safeCb(d=>{st.sync=d.exists?d.data():null;renderSync();}),()=>{});
   db.doc("config/regras").onSnapshot(safeCb(d=>{st.regras=d.exists&&Array.isArray(d.data().lista)?d.data().lista:null;done("c",d);renderFin();}),onErr);
   try{const u=await c.use("user");if(u&&typeof u.isOwner==="function"&&(await u.isOwner())===false)setReadonly();}catch(e){}

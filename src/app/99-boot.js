@@ -21,6 +21,8 @@ $("l-data").value=todayStr();$("r-data").value=todayStr();route();render();
   db.doc("config/objetivos").onSnapshot(safeCb(d=>{st.goals=d.exists?d.data():null;done("g",d);renderPoup();}),onErr);
   db.doc("historico/carteira").onSnapshot(safeCb(d=>{st.hist=d.exists?d.data():null;done("h",d);renderRent();}),onErr);
   db.doc("sync/investimentos").onSnapshot(safeCb(d=>{st.auto=d.exists?d.data():null;renderAuto();}),()=>{});
+  db.doc("sync/cofres").onSnapshot(safeCb(d=>{st.cofres=d.exists?d.data():null;renderCofres();}),()=>{});
+  db.doc("config/cofres").onSnapshot(safeCb(d=>{st.cofresNomes=d.exists?d.data():null;renderCofres();}),()=>{});
   db.doc("sync/revolut").onSnapshot(safeCb(d=>{st.sync=d.exists?d.data():null;renderSync();}),()=>{});
   db.doc("config/regras").onSnapshot(safeCb(d=>{st.regras=d.exists&&Array.isArray(d.data().lista)?d.data().lista:null;done("c",d);renderFin();}),onErr);
   try{const u=await c.use("user");if(u&&typeof u.isOwner==="function"&&(await u.isOwner())===false)setReadonly();}catch(e){}

@@ -69,11 +69,16 @@ try {
   await page.evaluate(() => location.hash = "definicoes"); await page.waitForTimeout(200);
   const al = await page.textContent("#auto-line"); ok(/Revolut X/.test(al) && /por configurar/.test(al), "Definições mostram o estado das tarefas automáticas");
 
+  await page.evaluate(() => firebase.firestore().collection("sync").doc("cofres").set({ contas: { u1: { saldo: 180 }, u2: { saldo: 249 } }, total: 429, atualizado: new Date().toISOString() }));
+  await page.evaluate(() => location.hash = "financas"); await page.waitForTimeout(300);
+  ok(/429,00/.test(await page.textContent("#cofres-total")) && /Cofre A/.test(await page.textContent("#cofres-list")), "cartão dos cofres com total e saldos");
+
   console.log("iPhone");
   await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(500);
   for (const t of ["resumo", "orcamento", "poupanca", "investimentos", "mais"]) {
     await page.click('#m-tabs button[data-t="' + t + '"]'); await page.waitForTimeout(150);
     ok((await page.textContent("#m-content")).length > 20, "separador " + t);
+    if (t === "resumo") ok(/Cofres/.test(await page.textContent("#m-content")), "cofres no resumo do iPhone");
   }
 } catch (e) { falhas.push(String(e)); console.error(e); }
 ok(!erros.length, "sem erros na página" + (erros.length ? ": " + erros.join(" | ") : ""));
