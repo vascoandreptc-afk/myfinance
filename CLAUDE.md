@@ -45,9 +45,13 @@ https://vascoandreptc-afk.github.io/myfinance/ · Português de Portugal em toda
   - **email** (`GMAIL_USER`, `GMAIL_APP_PASSWORD`): caixa Gmail dedicada que recebe, por reencaminhamento, os emails da
     XTB e da Optimize; lê os anexos por IMAP e importa-os com `src/importadores.js` deste repositório (checkout em `./app`).
     Anexos não reconhecidos ficam em `sync/email.desconhecidos` (amostra de texto) para se escrever o leitor.
+    A XTB envia por email a **confirmação das ordens executadas** (PDF com palavra-passe → segredo `XTB_PDF_PASSWORD`):
+    compras exatas por ETF + valor da conta, mas não o valor por posição. Vira lotes `origem:"xtb-conf"`; o Excel da XTB
+    seguinte apaga-os (já os inclui). Na app, o import pede a palavra-passe e não a guarda.
   - **cripto** (`REVX_API_KEY`, `REVX_PRIVATE_KEY` Ed25519): API só de leitura da Revolut X — saldo unificado com a app
     principal (inclui Trocos), transações (lotes `origem:"revx"`) e fecho mensal por velas diárias. Começa em `sync/revx.inicio`.
-  - **xtb**: estimativa entre extratos — unidades do último extrato + depósitos "JP Morgan" vistos na conta pessoal,
+  - **xtb**: estimativa entre extratos — unidades do último Excel + compras confirmadas (`xtb-conf`) + depósitos "JP Morgan"
+    ainda sem confirmação, vistos na conta pessoal,
     repartidos pelos planos (aportes do último mês) e ETF (peso no valor), cotações do Yahoo. Escreve `valorEstimado`/
     `estimadoEm` nos ativos (a app usa-os só se forem mais recentes do que `atualizado`), lotes `origem:"xtb-est"` e meses
     `est:true` no histórico. O extrato real apaga tudo isto.

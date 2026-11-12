@@ -8,7 +8,7 @@ const F = require("../fixtures.js");
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const NM = p => require.resolve(p);
 const tmp = fs.mkdtempSync(path.join((await import("node:os")).tmpdir(), "mf-ui-"));
-const files = { "xtb.xlsx": F.xtbXLSX(), "cripto.pdf": await F.criptoPDF(), "revolut.pdf": await F.revolutPDF(),
+const files = { "xtb.xlsx": F.xtbXLSX(), "cripto.pdf": await F.criptoPDF(), "revolut.pdf": await F.revolutPDF(), "xtb-conf.pdf": await F.xtbConfirmacaoPDF(),
   "optimize.pdf": await F.optimizePDF({ fundos: [{ nome: "Ativo", qty: "150", custo: "18", cot: "20", valia: "300", pct: "11", valor: "3,000.00" }, { nome: "Agressivo", qty: "100", custo: "20", cot: "26", valia: "600", pct: "30", valor: "2,600.00" }] }) };
 for (const [n, b] of Object.entries(files)) fs.writeFileSync(path.join(tmp, n), b);
 
@@ -41,7 +41,7 @@ try {
 
   console.log("Importar extratos fictícios (Definições)");
   await page.click("#tab-definicoes"); await page.waitForTimeout(200); ok(await page.isVisible("#drop"), "roda dentada abre as Definições");
-  for (const [n, espera] of [["revolut.pdf", /3 movimentos de outubro 2026 · saldos verificados/], ["xtb.xlsx", /XTB/], ["cripto.pdf", /cripto/i], ["optimize.pdf", /Optimize|PPR/]]) {
+  for (const [n, espera] of [["revolut.pdf", /3 movimentos de outubro 2026 · saldos verificados/], ["xtb.xlsx", /XTB/], ["xtb-conf.pdf", /Confirmação da XTB/], ["cripto.pdf", /cripto/i], ["optimize.pdf", /Optimize|PPR/]]) {
     await page.setInputFiles("#imp-file", path.join(tmp, n));
     await page.waitForSelector("#imp-preview", { state: "visible", timeout: 15000 });
     const info = await page.textContent("#imp-info"); ok(espera.test(info), n + ": pré-visualização reconhece o ficheiro (" + info.slice(0, 60) + ")");

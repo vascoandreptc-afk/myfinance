@@ -55,7 +55,8 @@ async function importXTB(r,msg){
   const keepL=new Set();
   for(const k in agg){const a=agg[k];const id="xtb-"+SLUG[a.g]+"-"+slugT(a.t)+"-"+a.y;keepL.add(id);
     await st.db.collection("lotes").doc(id).set({data:a.d||null,ticker:a.t,categoria:a.g,plataforma:"XTB",investido:r2(a.inv),quantidade:+a.qty.toFixed(6),nota:(a.g==="XTB Manual"?"Compras manuais":"Plano "+(a.g==="ETF Core"?"Core":"Agressivo"))+" de "+a.y+" ("+a.n+" posições)",origem:"xtb"});n++;}
-  for(const l of st.lotes)if((l.origem==="xtb"||l.origem==="xtb-est")&&!keepL.has(l.id)){await st.db.collection("lotes").doc(l.id).delete();n++;}
+  const repDia=r.report.toISOString().slice(0,10);
+  for(const l of st.lotes)if((l.origem==="xtb"||l.origem==="xtb-est"||(l.origem==="xtb-conf"&&(l.data||"")<=repDia))&&!keepL.has(l.id)){await st.db.collection("lotes").doc(l.id).delete();n++;}
   // ativos
   const av={};for(const p of r.pos){const id=SLUG[p.g]+"~"+p.t;av[id]=av[id]||{ticker:p.t,categoria:p.g,valorAtual:0};av[id].valorAtual+=p.val;}
   const day=r.report.toISOString().slice(0,10);
@@ -145,6 +146,47 @@ async function pprRebuild(ticker,ser,titular){
   for(const l of st.lotes)if(l.ticker===ticker&&l.origem==="optimize"&&!lots[l.id])await st.db.collection("lotes").doc(l.id).delete();
   for(const id in lots)await st.db.collection("lotes").doc(id).set(lots[id]);
 }
-return {parseXTB,importXTB,parseCripto,importCripto,parseOptimize,importOptimize,pprRebuild,targetMonth,PPR_NOMES};
+/* ---- confirmação das ordens executadas da XTB (PDF que chega por email, normalmente com palavra-passe) ---- */
+async function linhasPDF(lib,buf,password){
+  const doc=await lib.getDocument({data:buf,isEvalSupported:false,password:password||undefined}).promise;const pags=[];
+  for(let p=1;p<=doc.numPages;p++){const tc=await (await doc.getPage(p)).getTextContent();
+    const it=tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({x:i.transform[4],y:i.transform[5],s:i.str.trim()}));it.sort((a,b)=>b.y-a.y||a.x-b.x);
+    const L=[];for(const i of it){const l=L.find(l=>Math.abs(l.y-i.y)<=3);if(l)l.p.push(i);else L.push({y:i.y,p:[i]});}
+    for(const l of L)l.p.sort((a,b)=>a.x-b.x);pags.push(L.sort((a,b)=>b.y-a.y));}
+  return pags;}
+function ehConfirmacaoXTB(texto){const t=String(texto).replace(/\s+/g,"");return /ordensexecutadasem\d{2}\/\d{2}\/\d{4}/i.test(t)&&/XTB/i.test(t);}
+async function parseXTBConfirmacao(lib,buf,password){
+  const pags=await linhasPDF(lib,buf,password);
+  const num=s=>{const v=parseFloat(String(s||"").replace(/[\s ]/g,"").replace(",","."));return isFinite(v)?v:null;};
+  const col=(l,a,b)=>l.p.filter(i=>i.x>=a&&i.x<b).map(i=>i.s).join(" ");
+  let dia=null,conta=null,secao=null;const ops=[];
+  for(const L of pags)for(let k=0;k<L.length;k++){const l=L[k];const junto=l.p.map(i=>i.s).join("").replace(/\s+/g,"");let m;
+    if(!dia&&(m=junto.match(/ordensexecutadasem(\d{2})\/(\d{2})\/(\d{4})/i)))dia=m[3]+"-"+m[2]+"-"+m[1];
+    if(/^Nomee?Sobrenome/i.test(junto)&&L[k+1]){const v=L[k+1];conta={balanco:num(col(v,480,640)),valorConta:num(col(v,640,800)),valorAcoes:num(col(v,800,960))};continue;}
+    if(/^Ordens.*(compra|buy)/i.test(junto)){secao="compra";continue;}
+    if(/^Ordens.*(venda|sell)/i.test(junto)){secao="venda";continue;}
+    if(/^Posi/i.test(junto)){secao=null;continue;}
+    if(!secao)continue;
+    const id=col(l,55,140).trim();if(!/^\d{6,}$/.test(id))continue;
+    const ticker=(l.p.map(i=>i.s).find(s=>/^[A-Z0-9]+\.[A-Z]{2}$/.test(s)))||"";if(!ticker)continue;
+    const vol=num(col(l,460,550)),preco=num(col(l,730,815)),total=num(col(l,815,905)),moeda=col(l,990,1080).trim(),fx=parseFloat(col(l,1080,1165))||1,custos=num(col(l,1330,1500))||0;
+    if(!vol||!total)continue;
+    ops.push({tipo:secao,id,ticker,vol,preco,total,moeda,fx,custos,eur:r2(total*fx+Math.abs(custos))});}
+  return {tipo:"xtb-conf",dia,conta,ops};
+}
+async function importXTBConfirmacao(r,msg){
+  const base=Object.entries(st.ativos).filter(([id])=>/^(core|agr|man)~/.test(id)).map(([,d])=>d.atualizadoReal||d.atualizado||"").sort().pop()||"";
+  if(base&&r.dia<=base){msg.textContent="Confirmação da XTB de "+r.dia+" já incluída no último extrato ("+base+").";return 0;}
+  const by={};let n=0;
+  for(const o of r.ops.filter(o=>o.tipo==="compra")){const k=o.id+"|"+o.ticker;const b=by[k]=by[k]||{...o,vol:0,eur:0};b.vol+=o.vol;b.eur+=o.eur;}
+  for(const k in by){const b=by[k];const g=planGroupForConf(b.ticker);
+    await st.db.collection("lotes").doc("xtbconf-"+b.id+"-"+slugT(b.ticker)).set({data:r.dia,ticker:b.ticker,categoria:g,plataforma:"XTB",investido:r2(b.eur),quantidade:+b.vol.toFixed(6),nota:"Ordem "+b.id+" (confirmação da XTB de "+r.dia+")",origem:"xtb-conf"});n++;}
+  const vend=r.ops.filter(o=>o.tipo==="venda").length;
+  msg.textContent="Confirmação da XTB de "+r.dia+": "+n+" compra(s) registada(s)"+(vend?" · "+vend+" venda(s) ficam para o próximo Excel da XTB":"")+(r.conta&&r.conta.valorConta!=null?" · valor da conta "+eur.format(r.conta.valorConta):"")+".";
+  return n;
+}
+function planGroupForConf(t){const l=st.lotes.filter(l=>l.origem==="xtb"&&l.ticker===t);
+  if(l.some(x=>x.categoria==="ETF Core"))return "ETF Core";if(l.some(x=>x.categoria==="ETF Agressivo"))return "ETF Agressivo";if(l.length)return l[0].categoria;return AGR_DEFAULT.has(t)?"ETF Agressivo":"ETF Core";}
+return {parseXTB,importXTB,parseXTBConfirmacao,importXTBConfirmacao,ehConfirmacaoXTB,linhasPDF,parseCripto,importCripto,parseOptimize,importOptimize,pprRebuild,targetMonth,PPR_NOMES};
 }
 if(typeof module!=="undefined")module.exports={mfImportadores};

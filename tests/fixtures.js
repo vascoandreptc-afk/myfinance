@@ -46,6 +46,22 @@ function revolutPDF() {
   return pdfDeLinhas([L]);
 }
 
+// Confirmação das ordens executadas da XTB (mesmas posições x do PDF real)
+function xtbConfirmacaoPDF({ dia = "05/11/2026" } = {}) {
+  const L = []; const row = (top, cols) => cols.forEach(([x, t]) => L.push({ x, top, t }));
+  row(60, [[20, "Confirmação das ordens executadas em " + dia]]);
+  row(110, [[25, "Nome e Sobrenome"], [186, "Conta"], [507, "Balanço"], [668, "Valor da Conta"], [829, "Valor das Ações"]]);
+  row(125, [[25, "TESTE EXEMPLO"], [186, "11111111"], [346, "EUR"], [507, "23,99"], [668, "4 058,46"], [829, "4 034,47"]]);
+  row(170, [[20, "Ordens de compra OMI executadas (1)"]]);
+  row(240, [[25, "1"], [60, "2900000001"], [147, "EUNA.DE"], [235, "iShares, UCITS,"], [322, "XTSI"], [517, "2,0000"], [557, "05/11/2026"], [644, "market"], [773, "4,89710"], [861, "9,79420"], [906, "ETFs"], [994, "EUR"], [1128, "1.0000"], [1227, "0,00"], [1314, "0,00"], [1402, "0,00"]]);
+  row(300, [[20, "Ordens Buy executadas de ações fracionadas (2)"]]);
+  row(360, [[25, "1"], [60, "2900000001"], [147, "EUNA.DE"], [235, "iShares, UCITS,"], [322, "XTB"], [517, "0,0216"], [557, "05/11/2026"], [644, "market"], [773, "4,89710"], [861, "0,10578"], [906, "ETFs"], [994, "EUR"], [1128, "1.0000"], [1227, "0,00"], [1314, "0,00"], [1402, "0,00"]]);
+  row(400, [[25, "2"], [60, "2900000002"], [147, "RBOT.UK"], [235, "iShares, UCITS,"], [322, "XTB"], [517, "1,0000"], [557, "05/11/2026"], [644, "market"], [768, "20,02500"], [855, "20,02500"], [906, "ETFs"], [994, "USD"], [1128, "0.8956"], [1224, "-0,09"], [1314, "0,00"], [1399, "-0,09"]]);
+  row(460, [[20, "Posições de CFD fechadas (1)"]]);
+  row(520, [[25, "1"], [54, "2900000003"], [127, "BITCOIN"], [367, "0,0070"]]);
+  return pdfDeLinhas([L], { largura: 1450, altura: 720 });
+}
+
 function xtbXLSX({ gerado = "2026-11-03 10:00:00" } = {}) {
   const wb = XLSX.utils.book_new();
   const op = [["Report generated", gerado], [], ["Product", "", "Symbol", "", "Type", "Volume", "Market value", "", "", "Open time", "", "", "", "Net profit"],
@@ -83,4 +99,4 @@ function pdfjs() {
   return { getDocument: o => lib.getDocument({ ...o, verbosity: 0, standardFontDataUrl: fonts }) };
 }
 
-module.exports = { pdfDeLinhas, optimizePDF, criptoPDF, revolutPDF, xtbXLSX, fakeDb, estado, pdfjs, XLSX };
+module.exports = { xtbConfirmacaoPDF, pdfDeLinhas, optimizePDF, criptoPDF, revolutPDF, xtbXLSX, fakeDb, estado, pdfjs, XLSX };

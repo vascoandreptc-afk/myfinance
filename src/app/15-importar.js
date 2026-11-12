@@ -12,7 +12,14 @@ async function handleFile(file){
       $("imp-preview").hidden=false;msg.textContent="";}catch(e){msg.textContent="Não consegui ler este Excel. Usa a exportação do histórico da conta XTB em .xlsx.";}return;}
   try{
     const lib=await pdfLib();const buf=new Uint8Array(await file.arrayBuffer());
-    const first=await (await (await lib.getDocument({data:buf.slice(),isEvalSupported:false}).promise).getPage(1)).getTextContent();
+    let pw=null,pdoc;
+    for(;;){try{pdoc=await lib.getDocument({data:buf.slice(),isEvalSupported:false,password:pw||undefined}).promise;break;}
+      catch(e){if(e&&e.name==="PasswordException"){pw=window.prompt(pw?"Palavra-passe errada. Tenta outra vez:":"Este PDF tem palavra-passe (os extratos da XTB costumam ter). Escreve-a para o abrir — não fica guardada:");if(pw==null){msg.textContent="Importação cancelada.";return;}continue;}throw e;}}
+    const first=await (await pdoc.getPage(1)).getTextContent();
+    if(IMP.ehConfirmacaoXTB(first.items.map(i=>i.str).join(" "))){const r=await IMP.parseXTBConfirmacao(lib,buf.slice(),pw);st.pending=r;$("imp-conta-wrap").hidden=true;
+      if(!r.ops.length){msg.textContent="Não encontrei ordens executadas nesta confirmação da XTB.";return;}
+      $("imp-info").textContent="Confirmação da XTB de "+fmtD(parseD(r.dia))+": "+r.ops.length+" ordens ("+eur.format(r.ops.reduce((a,o)=>a+o.eur,0))+")"+(r.conta&&r.conta.valorConta!=null?" · valor da conta "+eur.format(r.conta.valorConta):"")+". Regista as compras até chegar o próximo Excel da XTB.";
+      $("imp-preview").hidden=false;msg.textContent="";return;}
     if(first.items.some(i=>/fundos Optimize|Optimize Investment Partners/i.test(i.str))){const r=await parseOptimize(lib,buf.slice());st.pending=r;$("imp-conta-wrap").hidden=true;
       if(!r.fim||!r.fundos.length){msg.textContent="Não encontrei a situação detalhada dos PPR neste extrato da Optimize.";return;}
       $("imp-info").textContent="Extrato Optimize de "+mesLabel(r.fim.slice(0,7))+(r.titular?" ("+r.titular+")":"")+": "+r.fundos.map(f=>f.nome+" "+eur.format(f.valor)).join(" · ")+". Atualiza o valor, o total entregue e a rentabilidade.";
@@ -42,7 +49,7 @@ drop.addEventListener("drop",e=>{e.preventDefault();drop.classList.remove("over"
 $("imp-cancel").addEventListener("click",()=>{st.pending=null;$("imp-preview").hidden=true;$("imp-file").value="";});
 $("imp-go").addEventListener("click",async()=>{
   const r=st.pending;if(!r||!st.db)return;const btn=$("imp-go");btn.disabled=true;const msg=$("imp-msg");msg.textContent="A importar…";
-  if(r.tipo!=="revolut"){try{if(r.tipo==="xtb")await importXTB(r,msg);else if(r.tipo==="optimize")await importOptimize(r,msg);else await importCripto(r,msg);st.pending=null;$("imp-preview").hidden=true;$("imp-file").value="";}
+  if(r.tipo!=="revolut"){try{if(r.tipo==="xtb")await importXTB(r,msg);else if(r.tipo==="xtb-conf")await IMP.importXTBConfirmacao(r,msg);else if(r.tipo==="optimize")await importOptimize(r,msg);else await importCripto(r,msg);st.pending=null;$("imp-preview").hidden=true;$("imp-file").value="";}
     catch(e){msg.textContent="A importação parou a meio. Volta a importar o mesmo ficheiro para completar.";}finally{btn.disabled=false;}return;}
   const conta=$("imp-conta").value;const lista=rules();const ms=Object.keys(r.split).sort();
   let nMov=0,troTot=0,done=0;

@@ -71,3 +71,25 @@ test("XTB: o extrato real apaga os lotes estimados e as marcas da estimativa", a
   const e = db.store.historico.carteira.grupos["ETF Core"]["2026-10"];
   assert.equal(e.aBase, undefined); assert.equal(e.est, undefined); assert.equal(e.v, 900); assert.equal(e.a, 150);
 });
+
+test("XTB: confirmação das ordens executadas (PDF do email)", async () => {
+  const db = F.fakeDb();
+  await db.collection("lotes").doc("xtb-core-EUNA.DE-2026").set({ ticker: "EUNA.DE", categoria: "ETF Core", quantidade: 30, investido: 140, origem: "xtb" });
+  await db.collection("ativos").doc("core~EUNA.DE").set({ ticker: "EUNA.DE", categoria: "ETF Core", valorAtual: 150, atualizado: "2026-11-01" });
+  const I = mfImportadores(F.estado(db), { hoje });
+  const pdf = buf(await F.xtbConfirmacaoPDF());
+  const pg = await I.linhasPDF(F.pdfjs(), pdf.slice());
+  assert.ok(I.ehConfirmacaoXTB(pg[0].map(l => l.p.map(i => i.s).join(" ")).join(" ")));
+  const r = await I.parseXTBConfirmacao(F.pdfjs(), pdf);
+  assert.equal(r.dia, "2026-11-05"); assert.equal(r.conta.valorConta, 4058.46);
+  assert.equal(r.ops.length, 3, "CFD fechados ficam de fora");
+  assert.equal(r.ops[2].eur, 18.02); // 20,025 USD × 0,8956 + 0,09 de custos
+  await I.importXTBConfirmacao(r, msg());
+  const l = db.store.lotes["xtbconf-2900000001-EUNA_DE"];
+  assert.equal(l.quantidade, 2.0216); assert.equal(l.categoria, "ETF Core"); assert.equal(l.investido, 9.9);
+  assert.equal(db.store.lotes["xtbconf-2900000002-RBOT_UK"].categoria, "ETF Agressivo");
+  // o Excel seguinte apaga as confirmações que ele já inclui
+  const st2 = F.estado(db); const I2 = mfImportadores(st2, { hoje });
+  await I2.importXTB(await I2.parseXTB(F.XLSX, F.xtbXLSX({ gerado: "2026-11-20 10:00:00" })), msg());
+  assert.ok(!db.store.lotes["xtbconf-2900000001-EUNA_DE"], "confirmação substituída pelo Excel");
+});
