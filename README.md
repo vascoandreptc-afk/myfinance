@@ -40,3 +40,7 @@ Liga o GitHub ao Claude (definições do claude.ai) e dá acesso ao repositório
 - A configuração do Firebase (`firebase-config.js`) não é secreta; o que protege os dados são as regras do Firestore, que só deixam entrar os dois UIDs.
 - Usa palavras-passe fortes e, se quiseres, ativa a verificação em dois passos na conta Google.
 - Descarrega uma cópia de segurança de vez em quando (botão *Descarregar cópia*) e guarda-a no iCloud Drive — nunca no GitHub.
+
+## Para quem altera o código
+O `app.js` é gerado a partir de `src/` com `node build.js`. Antes de publicar: `npm test` e `npm run test:ui`.
+O contexto completo (arquitetura, dados, regras de negócio) está em `CLAUDE.md`.

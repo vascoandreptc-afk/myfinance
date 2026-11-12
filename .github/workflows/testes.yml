@@ -1,0 +1,19 @@
+name: Testes
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Leitores de extratos e app.js
+        run: npm test
+      - run: npx playwright install --with-deps chromium
+      - name: Interface (Mac e iPhone)
+        run: npm run test:ui

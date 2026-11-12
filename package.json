@@ -1,0 +1,16 @@
+{
+  "name": "myfinance",
+  "private": true,
+  "description": "MyFinance: finanças pessoais, orçamento e investimentos (PWA)",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node build.js --check && node --test \"tests/*.test.js\"",
+    "test:ui": "node tests/ui/smoke.mjs"
+  },
+  "devDependencies": {
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "3.11.174",
+    "playwright": "1.63.0",
+    "xlsx": "0.18.5"
+  }
+}
