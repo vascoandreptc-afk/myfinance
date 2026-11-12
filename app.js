@@ -159,7 +159,7 @@ async function importXTB(r,msg){
   const keepL=new Set();
   for(const k in agg){const a=agg[k];const id="xtb-"+SLUG[a.g]+"-"+slugT(a.t)+"-"+a.y;keepL.add(id);
     await st.db.collection("lotes").doc(id).set({data:a.d||null,ticker:a.t,categoria:a.g,plataforma:"XTB",investido:r2(a.inv),quantidade:+a.qty.toFixed(6),nota:(a.g==="XTB Manual"?"Compras manuais":"Plano "+(a.g==="ETF Core"?"Core":"Agressivo"))+" de "+a.y+" ("+a.n+" posições)",origem:"xtb"});n++;}
-  for(const l of st.lotes)if(l.origem==="xtb"&&!keepL.has(l.id)){await st.db.collection("lotes").doc(l.id).delete();n++;}
+  for(const l of st.lotes)if((l.origem==="xtb"||l.origem==="xtb-est")&&!keepL.has(l.id)){await st.db.collection("lotes").doc(l.id).delete();n++;}
   // ativos
   const av={};for(const p of r.pos){const id=SLUG[p.g]+"~"+p.t;av[id]=av[id]||{ticker:p.t,categoria:p.g,valorAtual:0};av[id].valorAtual+=p.val;}
   const day=r.report.toISOString().slice(0,10);
@@ -170,7 +170,7 @@ async function importXTB(r,msg){
   // history
   const H=JSON.parse(JSON.stringify(histGroups()));const tot={};for(const p of r.pos)tot[p.g]=(tot[p.g]||0)+p.val;
   for(const g of ["ETF Core","ETF Agressivo","XTB Manual"]){H[g]=H[g]||{};
-    for(const m in r.ap[g]){H[g][m]=H[g][m]||{};H[g][m].a=r2(r.ap[g][m]);}
+    for(const m in r.ap[g]){H[g][m]=H[g][m]||{};H[g][m].a=r2(r.ap[g][m]);delete H[g][m].aBase;}
     H[g][tm.m]=H[g][tm.m]||{};H[g][tm.m].v=r2(tot[g]||0);delete H[g][tm.m].est;if(tm.parcial)H[g][tm.m].parcial=true;else delete H[g][tm.m].parcial;}
   await st.db.collection("historico").doc("carteira").set({...(st.hist||{}),grupos:H});
   msg.textContent="XTB importada: "+r.pos.length+" posições, "+Object.keys(r.real).length+" resultados realizados e o valor de "+(tm.parcial?"hoje":"fecho de "+mesLabel(tm.m))+" nos investimentos."+(r.newT.length?" Novos ETF nos planos ("+[...new Set(r.newT)].join(", ")+") ficaram no Core; muda a categoria do lote se forem do Agressivo.":"");
@@ -565,6 +565,8 @@ $("imp-go").addEventListener("click",async()=>{
 });
 
 /* ================= INVESTIMENTOS ================= */
+// a estimativa diária da XTB (tarefa automática) só conta se for mais recente do que o último extrato/valor real
+function comEstimativa(x){if(x&&x.estimadoEm&&typeof x.valorEstimado==="number"&&x.estimadoEm>(x.atualizado||"")){return {...x,valorReal:x.valorAtual,atualizadoReal:x.atualizado,valorAtual:x.valorEstimado,atualizado:x.estimadoEm,estimado:true};}return x;}
 function compute(){
   const byT={};const AK=ativosByKey();
   for(const l of st.lotes){const k=akey(l.categoria,l.ticker);(byT[k]=byT[k]||{lots:[],cat:l.categoria,t:l.ticker}).lots.push(l);}
@@ -575,7 +577,7 @@ function compute(){
     const val=doc&&typeof doc.valorAtual==="number"?doc.valorAtual:inv;
     const allQty=a.lots.length>0&&a.lots.every(l=>+l.quantidade>0);const qtyT=a.lots.reduce((s,l)=>s+(+l.quantidade||0),0);
     for(const l of a.lots){const share=allQty?(+l.quantidade/qtyT):(inv>0?(+l.investido||0)/inv:0);l._val=val*share;l._res=l._val-(+l.investido||0);}
-    assets.push({t,cat,inv,val,res:val-inv,upd:doc&&doc.atualizado,lots:a.lots,docId:AK[k]?AK[k].id:SLUG[cat]+"~"+t});}
+    assets.push({t,cat,inv,val,res:val-inv,upd:doc&&doc.atualizado,est:!!(doc&&doc.estimado),auto:doc&&doc.auto,lots:a.lots,docId:AK[k]?AK[k].id:SLUG[cat]+"~"+t});}
   return assets;
 }
 function lotStatus(l,now){
@@ -606,7 +608,7 @@ function renderInv(){
     tr.innerHTML='<td><span class="tick">'+esc(a.t)+'</span></td><td><span class="cat"><i style="background:'+INV_COLOR[a.cat]+'"></i>'+esc(a.cat)+'</span></td>'+
       '<td class="r num">'+eur.format(a.inv)+'</td>'+
       '<td class="r"><div class="valedit"><input id="v-'+esc(a.docId)+'" type="number" step="0.01" inputmode="decimal" value="'+a.val.toFixed(2)+'" aria-label="Valor atual de '+esc(a.t)+'" '+(st.readonly?"disabled":"")+'><button type="button" class="btn-link" hidden>Guardar</button></div>'+
-      (a.upd?'<div class="note" style="text-align:right">atualizado '+fmtD(parseD(a.upd))+'</div>':'')+'</td>'+
+      (a.upd?'<div class="note" style="text-align:right">'+(a.est?'estimado a ':a.auto?'automático · ':'atualizado ')+fmtD(parseD(a.upd))+'</div>':'')+'</td>'+
       '<td class="r num '+cls(a.res)+'">'+signed(a.res)+'<div class="note" style="text-align:right">'+(a.inv>0?pct.format(a.res/a.inv):"")+'</div></td>'+
       '<td class="r num">'+(tot>0?pct.format(a.val/tot):"—")+'</td>';
     tb.appendChild(tr);const inp=tr.querySelector("input"),btn=tr.querySelector("button");
@@ -1178,6 +1180,11 @@ function syncInfo(){const s=st.sync;if(!s)return null;
   const quando=s.ultimaExec?new Date(s.ultimaExec):null;const dias=s.valido_ate?Math.floor((new Date(s.valido_ate)-Date.now())/864e5):null;
   const txt=s.erro?s.erro:("Revolut sincronizada"+(quando?" "+quando.toLocaleDateString("pt-PT",{day:"2-digit",month:"short"})+" às "+quando.toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}):"")+(dias!=null?" · autorização válida por "+dias+" dias":""));
   const alerta=!!s.erro||(dias!=null&&dias<=14);return {txt,alerta,dias,erro:s.erro};}
+function renderAuto(){const el=$("auto-line");if(!el)return;const a=st.auto;if(!a){el.hidden=true;return;}
+  const N={email:"Extratos por email (XTB, Optimize)",cripto:"Cripto pela Revolut X",xtb:"Estimativa diária da XTB"};
+  const q=x=>{const d=new Date(x.quando);return d.toLocaleDateString("pt-PT",{day:"2-digit",month:"short"})+" às "+d.toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"});};
+  el.innerHTML=Object.keys(N).filter(k=>a[k]).map(k=>{const x=a[k];return '<div><b>'+N[k]+':</b> '+(x.porConfigurar?'por configurar':x.ok?esc(x.resumo||"ok")+' <span class="muted">('+q(x)+')</span>':'<span class="neg">erro: '+esc(x.erro||"")+'</span>')+'</div>';}).join("");
+  el.hidden=!el.innerHTML;}
 function renderSync(){const i=syncInfo();const el=$("sync-line");if(el){el.hidden=!i;if(i){el.textContent=i.txt;el.className="note "+(i.alerta?"neg":"");}}scheduleM&&scheduleM();}
 
 /* ---------- erros: um erro ao desenhar não pode parar a base de dados ---------- */
@@ -1201,7 +1208,7 @@ $("l-data").value=todayStr();$("r-data").value=todayStr();route();render();
   const done=(k,s)=>{if(!s.metadata.fromCache)st.loaded[k]=true;if(need.every(x=>st.loaded[x])){clearTimeout(timer);setStatus("Atualizado às "+new Date().toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}));}};
   const onErr=e=>{clearTimeout(timer);setStatus(e&&e.code==="revoked"?"O acesso aos registos terminou.":"Não foi possível carregar os registos.");};
   db.collection("lotes").onSnapshot(safeCb(s=>{st.lotes=s.docs.map(d=>({id:d.id,...d.data()}));done("l",s);renderInv();}),onErr);
-  db.collection("ativos").onSnapshot(safeCb(s=>{const m={};for(const d of s.docs)m[d.id]=d.data();st.ativos=m;pprGroups();done("a",s);renderInv();$("fe-rows").dataset.m="";renderFecho();}),onErr);
+  db.collection("ativos").onSnapshot(safeCb(s=>{const m={};for(const d of s.docs)m[d.id]=comEstimativa(d.data());st.ativos=m;pprGroups();done("a",s);renderInv();$("fe-rows").dataset.m="";renderFecho();}),onErr);
   db.collection("realizados").onSnapshot(safeCb(s=>{st.real=s.docs.map(d=>({id:d.id,...d.data()}));done("r",s);renderInv();}),onErr);
   db.collection("meses").onSnapshot(safeCb(s=>{const m={};for(const d of s.docs)m[d.id]=d.data();st.meses=m;done("m",s);renderFin();renderOrc();renderPlano();renderPoup();}),onErr);
   db.doc("config/categorias").onSnapshot(safeCb(d=>{setCustomCats(d.exists?d.data().lista:[]);done("k",d);renderCats();refreshCatSelects();renderFin();renderOrc();renderPlano();renderPoup();}),onErr);
@@ -1209,6 +1216,7 @@ $("l-data").value=todayStr();$("r-data").value=todayStr();route();render();
   db.doc("config/orcamentos").onSnapshot(safeCb(d=>{st.orc=d.exists?d.data():null;done("o",d);renderOrc();}),onErr);
   db.doc("config/objetivos").onSnapshot(safeCb(d=>{st.goals=d.exists?d.data():null;done("g",d);renderPoup();}),onErr);
   db.doc("historico/carteira").onSnapshot(safeCb(d=>{st.hist=d.exists?d.data():null;done("h",d);renderRent();}),onErr);
+  db.doc("sync/investimentos").onSnapshot(safeCb(d=>{st.auto=d.exists?d.data():null;renderAuto();}),()=>{});
   db.doc("sync/revolut").onSnapshot(safeCb(d=>{st.sync=d.exists?d.data():null;renderSync();}),()=>{});
   db.doc("config/regras").onSnapshot(safeCb(d=>{st.regras=d.exists&&Array.isArray(d.data().lista)?d.data().lista:null;done("c",d);renderFin();}),onErr);
   try{const u=await c.use("user");if(u&&typeof u.isOwner==="function"&&(await u.isOwner())===false)setReadonly();}catch(e){}

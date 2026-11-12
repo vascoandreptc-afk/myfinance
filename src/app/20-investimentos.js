@@ -1,4 +1,6 @@
 /* ================= INVESTIMENTOS ================= */
+// a estimativa diária da XTB (tarefa automática) só conta se for mais recente do que o último extrato/valor real
+function comEstimativa(x){if(x&&x.estimadoEm&&typeof x.valorEstimado==="number"&&x.estimadoEm>(x.atualizado||"")){return {...x,valorReal:x.valorAtual,atualizadoReal:x.atualizado,valorAtual:x.valorEstimado,atualizado:x.estimadoEm,estimado:true};}return x;}
 function compute(){
   const byT={};const AK=ativosByKey();
   for(const l of st.lotes){const k=akey(l.categoria,l.ticker);(byT[k]=byT[k]||{lots:[],cat:l.categoria,t:l.ticker}).lots.push(l);}
@@ -9,7 +11,7 @@ function compute(){
     const val=doc&&typeof doc.valorAtual==="number"?doc.valorAtual:inv;
     const allQty=a.lots.length>0&&a.lots.every(l=>+l.quantidade>0);const qtyT=a.lots.reduce((s,l)=>s+(+l.quantidade||0),0);
     for(const l of a.lots){const share=allQty?(+l.quantidade/qtyT):(inv>0?(+l.investido||0)/inv:0);l._val=val*share;l._res=l._val-(+l.investido||0);}
-    assets.push({t,cat,inv,val,res:val-inv,upd:doc&&doc.atualizado,lots:a.lots,docId:AK[k]?AK[k].id:SLUG[cat]+"~"+t});}
+    assets.push({t,cat,inv,val,res:val-inv,upd:doc&&doc.atualizado,est:!!(doc&&doc.estimado),auto:doc&&doc.auto,lots:a.lots,docId:AK[k]?AK[k].id:SLUG[cat]+"~"+t});}
   return assets;
 }
 function lotStatus(l,now){
@@ -40,7 +42,7 @@ function renderInv(){
     tr.innerHTML='<td><span class="tick">'+esc(a.t)+'</span></td><td><span class="cat"><i style="background:'+INV_COLOR[a.cat]+'"></i>'+esc(a.cat)+'</span></td>'+
       '<td class="r num">'+eur.format(a.inv)+'</td>'+
       '<td class="r"><div class="valedit"><input id="v-'+esc(a.docId)+'" type="number" step="0.01" inputmode="decimal" value="'+a.val.toFixed(2)+'" aria-label="Valor atual de '+esc(a.t)+'" '+(st.readonly?"disabled":"")+'><button type="button" class="btn-link" hidden>Guardar</button></div>'+
-      (a.upd?'<div class="note" style="text-align:right">atualizado '+fmtD(parseD(a.upd))+'</div>':'')+'</td>'+
+      (a.upd?'<div class="note" style="text-align:right">'+(a.est?'estimado a ':a.auto?'automático · ':'atualizado ')+fmtD(parseD(a.upd))+'</div>':'')+'</td>'+
       '<td class="r num '+cls(a.res)+'">'+signed(a.res)+'<div class="note" style="text-align:right">'+(a.inv>0?pct.format(a.res/a.inv):"")+'</div></td>'+
       '<td class="r num">'+(tot>0?pct.format(a.val/tot):"—")+'</td>';
     tb.appendChild(tr);const inp=tr.querySelector("input"),btn=tr.querySelector("button");

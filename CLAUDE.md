@@ -41,5 +41,16 @@ https://vascoandreptc-afk.github.io/myfinance/ · Português de Portugal em toda
 ## Repositório privado `myfinance-sync` (GitHub Actions)
 - "Sincronizar Revolut" de 4 em 4 h via Enable Banking (PSD2, só leitura): contas pessoal (…5731) e conjunta (…7083).
   Autorização válida até ~maio de 2027: renovar com "1 · Autorizar Revolut" e "2 · Concluir autorização" (código).
+- "Atualizar investimentos" (6h37 e 18h37 UTC, `src/investimentos.js`), cada passo só corre se tiver os segredos:
+  - **email** (`GMAIL_USER`, `GMAIL_APP_PASSWORD`): caixa Gmail dedicada que recebe, por reencaminhamento, os emails da
+    XTB e da Optimize; lê os anexos por IMAP e importa-os com `src/importadores.js` deste repositório (checkout em `./app`).
+    Anexos não reconhecidos ficam em `sync/email.desconhecidos` (amostra de texto) para se escrever o leitor.
+  - **cripto** (`REVX_API_KEY`, `REVX_PRIVATE_KEY` Ed25519): API só de leitura da Revolut X — saldo unificado com a app
+    principal (inclui Trocos), transações (lotes `origem:"revx"`) e fecho mensal por velas diárias. Começa em `sync/revx.inicio`.
+  - **xtb**: estimativa entre extratos — unidades do último extrato + depósitos "JP Morgan" vistos na conta pessoal,
+    repartidos pelos planos (aportes do último mês) e ETF (peso no valor), cotações do Yahoo. Escreve `valorEstimado`/
+    `estimadoEm` nos ativos (a app usa-os só se forem mais recentes do que `atualizado`), lotes `origem:"xtb-est"` e meses
+    `est:true` no histórico. O extrato real apaga tudo isto.
+  - Estado de cada passo em `sync/investimentos` (mostrado nas Definições).
 - Segredos só em GitHub Secrets (nunca pedir nem mostrar): `EB_PRIVATE_KEY`, `FIREBASE_SERVICE_ACCOUNT` e os das
   importações automáticas. A XTB fechou a API em março de 2025.

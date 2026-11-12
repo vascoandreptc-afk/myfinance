@@ -55,7 +55,7 @@ async function importXTB(r,msg){
   const keepL=new Set();
   for(const k in agg){const a=agg[k];const id="xtb-"+SLUG[a.g]+"-"+slugT(a.t)+"-"+a.y;keepL.add(id);
     await st.db.collection("lotes").doc(id).set({data:a.d||null,ticker:a.t,categoria:a.g,plataforma:"XTB",investido:r2(a.inv),quantidade:+a.qty.toFixed(6),nota:(a.g==="XTB Manual"?"Compras manuais":"Plano "+(a.g==="ETF Core"?"Core":"Agressivo"))+" de "+a.y+" ("+a.n+" posições)",origem:"xtb"});n++;}
-  for(const l of st.lotes)if(l.origem==="xtb"&&!keepL.has(l.id)){await st.db.collection("lotes").doc(l.id).delete();n++;}
+  for(const l of st.lotes)if((l.origem==="xtb"||l.origem==="xtb-est")&&!keepL.has(l.id)){await st.db.collection("lotes").doc(l.id).delete();n++;}
   // ativos
   const av={};for(const p of r.pos){const id=SLUG[p.g]+"~"+p.t;av[id]=av[id]||{ticker:p.t,categoria:p.g,valorAtual:0};av[id].valorAtual+=p.val;}
   const day=r.report.toISOString().slice(0,10);
@@ -66,7 +66,7 @@ async function importXTB(r,msg){
   // history
   const H=JSON.parse(JSON.stringify(histGroups()));const tot={};for(const p of r.pos)tot[p.g]=(tot[p.g]||0)+p.val;
   for(const g of ["ETF Core","ETF Agressivo","XTB Manual"]){H[g]=H[g]||{};
-    for(const m in r.ap[g]){H[g][m]=H[g][m]||{};H[g][m].a=r2(r.ap[g][m]);}
+    for(const m in r.ap[g]){H[g][m]=H[g][m]||{};H[g][m].a=r2(r.ap[g][m]);delete H[g][m].aBase;}
     H[g][tm.m]=H[g][tm.m]||{};H[g][tm.m].v=r2(tot[g]||0);delete H[g][tm.m].est;if(tm.parcial)H[g][tm.m].parcial=true;else delete H[g][tm.m].parcial;}
   await st.db.collection("historico").doc("carteira").set({...(st.hist||{}),grupos:H});
   msg.textContent="XTB importada: "+r.pos.length+" posições, "+Object.keys(r.real).length+" resultados realizados e o valor de "+(tm.parcial?"hoje":"fecho de "+mesLabel(tm.m))+" nos investimentos."+(r.newT.length?" Novos ETF nos planos ("+[...new Set(r.newT)].join(", ")+") ficaram no Core; muda a categoria do lote se forem do Agressivo.":"");

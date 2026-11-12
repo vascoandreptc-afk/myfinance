@@ -60,6 +60,15 @@ try {
   }
   ok(/OPT-PPR|PPR/.test(await page.textContent("#v-investimentos")), "PPR aparece nos investimentos");
 
+  console.log("Tarefas automáticas");
+  await page.evaluate(() => { const f = firebase.firestore();
+    f.collection("ativos").doc("core~SXR8.DE").set({ ticker: "SXR8.DE", categoria: "ETF Core", valorAtual: 900, atualizado: "2026-11-03", valorEstimado: 955.5, estimadoEm: "2099-01-01" });
+    f.collection("sync").doc("investimentos").set({ cripto: { ok: true, resumo: "BTC 0.015 = 1328 €", quando: new Date().toISOString() }, email: { ok: false, porConfigurar: true, quando: new Date().toISOString() } }); });
+  await page.evaluate(() => location.hash = "investimentos"); await page.waitForTimeout(400);
+  ok(/955,50/.test(await page.textContent("#v-investimentos")) && /estimado a/.test(await page.textContent("#v-investimentos")), "estimativa da XTB mais recente substitui o valor e aparece marcada");
+  await page.evaluate(() => location.hash = "definicoes"); await page.waitForTimeout(200);
+  const al = await page.textContent("#auto-line"); ok(/Revolut X/.test(al) && /por configurar/.test(al), "Definições mostram o estado das tarefas automáticas");
+
   console.log("iPhone");
   await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(500);
   for (const t of ["resumo", "orcamento", "poupanca", "investimentos", "mais"]) {

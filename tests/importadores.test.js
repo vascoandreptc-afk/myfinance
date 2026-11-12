@@ -60,3 +60,14 @@ test("Revolut EUR: movimentos, valores e resumo", async () => {
     ["2026-10-01", "Continente", -12.34], ["2026-10-02", "Transferência de Fulano", 50], ["2026-10-15", "Galp", -50]]);
   assert.equal(r.summary["Conta (Conta Corrente)"].final, 987.66);
 });
+
+test("XTB: o extrato real apaga os lotes estimados e as marcas da estimativa", async () => {
+  const db = F.fakeDb();
+  await db.collection("lotes").doc("xtbest-core-SXR8.DE-2026-11").set({ ticker: "SXR8.DE", categoria: "ETF Core", investido: 100, quantidade: 0.1, origem: "xtb-est" });
+  await db.collection("historico").doc("carteira").set({ grupos: { "ETF Core": { "2026-10": { a: 100, aBase: 50, est: true, v: 1 } } } });
+  const I = mfImportadores(F.estado(db), { hoje });
+  await I.importXTB(await I.parseXTB(F.XLSX, F.xtbXLSX()), msg());
+  assert.ok(!db.store.lotes["xtbest-core-SXR8.DE-2026-11"], "lote estimado apagado");
+  const e = db.store.historico.carteira.grupos["ETF Core"]["2026-10"];
+  assert.equal(e.aBase, undefined); assert.equal(e.est, undefined); assert.equal(e.v, 900); assert.equal(e.a, 150);
+});

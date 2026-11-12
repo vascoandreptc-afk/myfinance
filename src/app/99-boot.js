@@ -12,7 +12,7 @@ $("l-data").value=todayStr();$("r-data").value=todayStr();route();render();
   const done=(k,s)=>{if(!s.metadata.fromCache)st.loaded[k]=true;if(need.every(x=>st.loaded[x])){clearTimeout(timer);setStatus("Atualizado às "+new Date().toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit"}));}};
   const onErr=e=>{clearTimeout(timer);setStatus(e&&e.code==="revoked"?"O acesso aos registos terminou.":"Não foi possível carregar os registos.");};
   db.collection("lotes").onSnapshot(safeCb(s=>{st.lotes=s.docs.map(d=>({id:d.id,...d.data()}));done("l",s);renderInv();}),onErr);
-  db.collection("ativos").onSnapshot(safeCb(s=>{const m={};for(const d of s.docs)m[d.id]=d.data();st.ativos=m;pprGroups();done("a",s);renderInv();$("fe-rows").dataset.m="";renderFecho();}),onErr);
+  db.collection("ativos").onSnapshot(safeCb(s=>{const m={};for(const d of s.docs)m[d.id]=comEstimativa(d.data());st.ativos=m;pprGroups();done("a",s);renderInv();$("fe-rows").dataset.m="";renderFecho();}),onErr);
   db.collection("realizados").onSnapshot(safeCb(s=>{st.real=s.docs.map(d=>({id:d.id,...d.data()}));done("r",s);renderInv();}),onErr);
   db.collection("meses").onSnapshot(safeCb(s=>{const m={};for(const d of s.docs)m[d.id]=d.data();st.meses=m;done("m",s);renderFin();renderOrc();renderPlano();renderPoup();}),onErr);
   db.doc("config/categorias").onSnapshot(safeCb(d=>{setCustomCats(d.exists?d.data().lista:[]);done("k",d);renderCats();refreshCatSelects();renderFin();renderOrc();renderPlano();renderPoup();}),onErr);
@@ -20,6 +20,7 @@ $("l-data").value=todayStr();$("r-data").value=todayStr();route();render();
   db.doc("config/orcamentos").onSnapshot(safeCb(d=>{st.orc=d.exists?d.data():null;done("o",d);renderOrc();}),onErr);
   db.doc("config/objetivos").onSnapshot(safeCb(d=>{st.goals=d.exists?d.data():null;done("g",d);renderPoup();}),onErr);
   db.doc("historico/carteira").onSnapshot(safeCb(d=>{st.hist=d.exists?d.data():null;done("h",d);renderRent();}),onErr);
+  db.doc("sync/investimentos").onSnapshot(safeCb(d=>{st.auto=d.exists?d.data():null;renderAuto();}),()=>{});
   db.doc("sync/revolut").onSnapshot(safeCb(d=>{st.sync=d.exists?d.data():null;renderSync();}),()=>{});
   db.doc("config/regras").onSnapshot(safeCb(d=>{st.regras=d.exists&&Array.isArray(d.data().lista)?d.data().lista:null;done("c",d);renderFin();}),onErr);
   try{const u=await c.use("user");if(u&&typeof u.isOwner==="function"&&(await u.isOwner())===false)setReadonly();}catch(e){}
