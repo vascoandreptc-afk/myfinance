@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chaves da Revolut X</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--fg:#14171c;--muted:#5b6472;--line:#dfe3e8;--accent:#1f5fd1;--neg:#b42318}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#171a20;--fg:#e8ebf0;--muted:#9aa3b2;--line:#2a2f38;--accent:#7aa7ff;--neg:#ff8a80}}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:720px;margin:0 auto;padding:28px 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin:14px 0}
+h1{font-size:1.4rem;margin:0 0 6px}h2{font-size:1.02rem;margin:0 0 8px}p,li{color:var(--muted)}b{color:var(--fg)}
+textarea{width:100%;box-sizing:border-box;min-height:110px;font:12px/1.4 ui-monospace,Menlo,monospace;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px}
+button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:9px 14px;font:600 14px inherit;cursor:pointer}
+button.ghost{background:none;color:var(--accent);border:1px solid var(--line)}
+.row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}.neg{color:var(--neg)}
+</style></head><body><main>
+<h1>Chaves da Revolut X</h1>
+<p>Esta página cria o par de chaves para a MyFinance ler a tua cripto na Revolut X (<b>só leitura</b>). As chaves são criadas aqui, neste browser: não são enviadas para lado nenhum nem ficam guardadas. Se fechares a página antes de as copiares, gera outras.</p>
+<div class="card"><button id="gerar" type="button">Gerar chaves</button><p id="erro" class="neg" hidden></p></div>
+<div id="out" hidden>
+  <div class="card"><h2>1 · Chave pública → Revolut X</h2>
+    <p>Em <b>exchange.revolut.com</b> → Perfil → <b>Chaves de API</b> → criar chave: cola esta chave pública e escolhe a permissão <b>só de leitura</b>. A Revolut X mostra-te depois a <b>chave de API</b> (64 caracteres).</p>
+    <textarea id="pub" readonly></textarea><div class="row"><button class="ghost" type="button" data-copy="pub">Copiar chave pública</button></div></div>
+  <div class="card"><h2>2 · Chave privada → GitHub (nunca a envies a ninguém)</h2>
+    <p>No repositório <b>myfinance-sync</b> → Settings → Secrets and variables → Actions → <b>New repository secret</b>:</p>
+    <ul><li>nome <b>REVX_PRIVATE_KEY</b> → cola esta chave privada inteira (com as linhas BEGIN e END);</li>
+      <li>nome <b>REVX_API_KEY</b> → cola a chave de API de 64 caracteres que a Revolut X te deu.</li></ul>
+    <textarea id="priv" readonly></textarea><div class="row"><button class="ghost" type="button" data-copy="priv">Copiar chave privada</button></div></div>
+</div>
+<script>
+const pem=(b,t)=>"-----BEGIN "+t+"-----\n"+btoa(String.fromCharCode(...new Uint8Array(b))).match(/.{1,64}/g).join("\n")+"\n-----END "+t+"-----\n";
+document.getElementById("gerar").addEventListener("click",async()=>{const err=document.getElementById("erro");err.hidden=true;
+  try{const k=await crypto.subtle.generateKey({name:"Ed25519"},true,["sign","verify"]);
+    document.getElementById("pub").value=pem(await crypto.subtle.exportKey("spki",k.publicKey),"PUBLIC KEY");
+    document.getElementById("priv").value=pem(await crypto.subtle.exportKey("pkcs8",k.privateKey),"PRIVATE KEY");
+    document.getElementById("out").hidden=false;}
+  catch(e){err.textContent="Este browser não consegue criar chaves Ed25519 ("+(e.message||e)+"). Experimenta o Safari 17 ou mais recente, ou o Chrome atualizado.";err.hidden=false;}});
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-copy]");if(!b)return;const t=document.getElementById(b.dataset.copy).value;
+  try{await navigator.clipboard.writeText(t);b.textContent="Copiado";}catch(_){document.getElementById(b.dataset.copy).select();}});
+</script></main></body></html>
