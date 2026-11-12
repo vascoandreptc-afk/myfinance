@@ -7,7 +7,7 @@ async function parseRevolutPDF(pdfjsLib, data){
   const toNum=s=>{const m=String(s||"").match(AMT);if(!m)return null;return parseFloat(m[1].replace(/[\s\u00a0.]/g,"").replace(",","."));};
   const iso=d=>{const [a,b,c]=d.split("/");return c+"-"+b+"-"+a;};
   const DETAIL=/^(Para:|Cartão:|Referência:|Taxa |Purchase of|De:|Data de|Montante)/i;
-  let section=null,period=null,cur=null,holder=null;const rows=[];const summary={};const allLines=[];
+  let section=null,period=null,fim=null,cur=null,holder=null;const rows=[];const summary={};const allLines=[];
   for(let p=1;p<=doc.numPages;p++){
     const page=await doc.getPage(p);const vp=page.getViewport({scale:1});
     const sx=vp.width/827, H=vp.height;
@@ -23,7 +23,7 @@ async function parseRevolutPDF(pdfjsLib, data){
       allLines.push(text);
       if(l.top<185||l.top>990)continue; // page header / footer
       if(p===1&&holder===null&&section===null){holder=text;continue;}
-      if(/^Operações da conta de/.test(text)){section="conta";const m=text.match(/de (\d+) de (\S+) de (\d{4})/);if(m)period=m[3]+"-"+String(MONTHS[m[2].toLowerCase()]||0).padStart(2,"0");cur=null;continue;}
+      if(/^Operações da conta de/.test(text)){section="conta";const m=text.match(/de (\d+) de (\S+) de (\d{4})/);if(m)period=m[3]+"-"+String(MONTHS[m[2].toLowerCase()]||0).padStart(2,"0");const mf=text.match(/ a (\d+) de (\S+) de (\d{4})/);if(mf&&MONTHS[mf[2].toLowerCase()])fim=mf[3]+"-"+String(MONTHS[mf[2].toLowerCase()]).padStart(2,"0")+"-"+String(mf[1]).padStart(2,"0");cur=null;continue;}
       if(/^(Transações de|Operações de Poupança|Operações de)/.test(text)&&!/da conta de/.test(text)){section="outra";cur=null;continue;}
       const sm=text.match(/^(Conta \(Conta Corrente\)|Cofres Pessoais e de Grupo|Poupança de Acesso Imediato|Total)\s+(.*)$/);
       if(sm&&section===null){const vals=(sm[2].match(/-?[\d\s\u00a0.]*\d,\d{2}€/g)||[]).map(toNum);if(vals.length>=4)summary[sm[1]]={inicial:vals[0],retirado:vals[1],recebido:vals[2],final:vals[3]};continue;}
@@ -45,7 +45,7 @@ async function parseRevolutPDF(pdfjsLib, data){
     const valor=r.rec!=null?r.rec:(r.ret!=null?-r.ret:0);
     return {data:r.data,dataValor:r.dataValor,descricao:title.join(" ").replace(/\s+/g," ").trim(),detalhe:detail.join(" · ").replace(/Cartão:\s*\S+/g,"").replace(/\s+·\s*$/,"").trim(),valor:Math.round(valor*100)/100,saldo:r.saldo};
   });
-  return {period,holder,rows:out,summary};
+  return {period,fim,holder,rows:out,summary};
 }
 if(typeof module!=="undefined")module.exports={parseRevolutPDF};
 

@@ -71,6 +71,7 @@ try {
 
   await page.evaluate(() => firebase.firestore().collection("sync").doc("cofres").set({ contas: { u1: { saldo: 180 }, u2: { saldo: 249 } }, total: 429, atualizado: new Date().toISOString() }));
   await page.evaluate(() => location.hash = "financas"); await page.waitForTimeout(300);
+  ok(/312,38/.test(await page.textContent("#pai-total")), "poupança de acesso imediato do extrato importado");
   ok(/429,00/.test(await page.textContent("#cofres-total")) && /Cofre A/.test(await page.textContent("#cofres-list")), "cartão dos cofres com total e saldos");
 
   console.log("iPhone");

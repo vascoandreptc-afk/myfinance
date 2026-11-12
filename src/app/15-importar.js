@@ -67,6 +67,7 @@ $("imp-go").addEventListener("click",async()=>{
         const ex=st.lotes.find(l=>l.id===lid);if(ex&&ex.origem==="cripto")continue;
         await st.db.collection("lotes").doc(lid).set({data:last,ticker:"BTC",categoria:"Cripto",plataforma:"Revolut",investido:tot,quantidade:null,nota:"Trocos de "+mesLabel(m)+" ("+tro.length+" compras)",origem:"extrato"});}
       done++;msg.textContent="A importar… "+done+"/"+ms.length+" meses";}
+    await guardarPoupancaExtrato(conta,r);
     msg.textContent="Importado: "+nMov+" movimentos em "+ms.length+" "+(ms.length>1?"meses":"mês")+" na conta "+CONTA_LABEL[conta]+(troTot?", e "+eur.format(troTot)+" de Trocos em BTC.":".");
     st.conta=conta;for(const x of $("conta-pills").querySelectorAll("button"))x.setAttribute("aria-pressed",String(x.dataset.c===conta));
     st.mes=ms[ms.length-1];st.ano=st.mes.slice(0,4);st.pending=null;$("imp-preview").hidden=true;$("imp-file").value="";

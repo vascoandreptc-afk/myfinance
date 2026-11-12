@@ -82,7 +82,7 @@ function renderMobile(){
       const g=goalFor(st.m.scope);const rate=s.entradas>0?s.poupado/s.entradas:null;
       h+='<div class="m-grid"><div class="m-card"><div class="eyebrow">Poupança</div><div class="m-mid">'+eur0.format(s.poupado)+'</div><div class="m-sub">'+(g.mensal?"objetivo "+eur0.format(g.mensal):"taxa "+pctOrDash(rate))+'</div>'+(g.mensal?mBar(s.poupado,g.mensal,s.poupado>=g.mensal?"var(--pos)":"var(--warn)"):"")+'</div>'+
         '<div class="m-card"><div class="eyebrow">Entradas</div><div class="m-mid">'+eur0.format(s.entradas)+'</div><div class="m-sub">investido '+eur0.format(s.investido)+'</div></div></div>';
-      h+=cofresMobile();
+      h+=cofresMobile()+poupancasMobile();
       const pts=mInvestSeries();const lp=pts[pts.length-1],pp=pts[pts.length-2];const dv=lp&&pp?(lp.v-pp.v)-(lp.a-pp.a):null;
       h+='<button type="button" class="m-card m-link" data-tab="investimentos"><div class="eyebrow">Investimentos</div><div class="m-mid">'+esc($("s-valor").textContent)+'</div><div class="m-sub '+(dv==null?"":cls(dv))+'">'+(dv==null?"":(dv>=0?"+":"−")+eur0.format(Math.abs(dv))+" no último mês, sem contar aportes")+'</div></button>';
       const top=Object.entries(s.cats).filter(([,v])=>v>0.5).sort((a,b)=>b[1]-a[1]).slice(0,5);

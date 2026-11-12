@@ -60,7 +60,7 @@ async function parseRevolutPDF(pdfjsLib, data){
   const toNum=s=>{const m=String(s||"").match(AMT);if(!m)return null;return parseFloat(m[1].replace(/[\s\u00a0.]/g,"").replace(",","."));};
   const iso=d=>{const [a,b,c]=d.split("/");return c+"-"+b+"-"+a;};
   const DETAIL=/^(Para:|Cartão:|Referência:|Taxa |Purchase of|De:|Data de|Montante)/i;
-  let section=null,period=null,cur=null,holder=null;const rows=[];const summary={};const allLines=[];
+  let section=null,period=null,fim=null,cur=null,holder=null;const rows=[];const summary={};const allLines=[];
   for(let p=1;p<=doc.numPages;p++){
     const page=await doc.getPage(p);const vp=page.getViewport({scale:1});
     const sx=vp.width/827, H=vp.height;
@@ -76,7 +76,7 @@ async function parseRevolutPDF(pdfjsLib, data){
       allLines.push(text);
       if(l.top<185||l.top>990)continue; // page header / footer
       if(p===1&&holder===null&&section===null){holder=text;continue;}
-      if(/^Operações da conta de/.test(text)){section="conta";const m=text.match(/de (\d+) de (\S+) de (\d{4})/);if(m)period=m[3]+"-"+String(MONTHS[m[2].toLowerCase()]||0).padStart(2,"0");cur=null;continue;}
+      if(/^Operações da conta de/.test(text)){section="conta";const m=text.match(/de (\d+) de (\S+) de (\d{4})/);if(m)period=m[3]+"-"+String(MONTHS[m[2].toLowerCase()]||0).padStart(2,"0");const mf=text.match(/ a (\d+) de (\S+) de (\d{4})/);if(mf&&MONTHS[mf[2].toLowerCase()])fim=mf[3]+"-"+String(MONTHS[mf[2].toLowerCase()]).padStart(2,"0")+"-"+String(mf[1]).padStart(2,"0");cur=null;continue;}
       if(/^(Transações de|Operações de Poupança|Operações de)/.test(text)&&!/da conta de/.test(text)){section="outra";cur=null;continue;}
       const sm=text.match(/^(Conta \(Conta Corrente\)|Cofres Pessoais e de Grupo|Poupança de Acesso Imediato|Total)\s+(.*)$/);
       if(sm&&section===null){const vals=(sm[2].match(/-?[\d\s\u00a0.]*\d,\d{2}€/g)||[]).map(toNum);if(vals.length>=4)summary[sm[1]]={inicial:vals[0],retirado:vals[1],recebido:vals[2],final:vals[3]};continue;}
@@ -98,7 +98,7 @@ async function parseRevolutPDF(pdfjsLib, data){
     const valor=r.rec!=null?r.rec:(r.ret!=null?-r.ret:0);
     return {data:r.data,dataValor:r.dataValor,descricao:title.join(" ").replace(/\s+/g," ").trim(),detalhe:detail.join(" · ").replace(/Cartão:\s*\S+/g,"").replace(/\s+·\s*$/,"").trim(),valor:Math.round(valor*100)/100,saldo:r.saldo};
   });
-  return {period,holder,rows:out,summary};
+  return {period,fim,holder,rows:out,summary};
 }
 if(typeof module!=="undefined")module.exports={parseRevolutPDF};
 
@@ -606,6 +606,7 @@ $("imp-go").addEventListener("click",async()=>{
         const ex=st.lotes.find(l=>l.id===lid);if(ex&&ex.origem==="cripto")continue;
         await st.db.collection("lotes").doc(lid).set({data:last,ticker:"BTC",categoria:"Cripto",plataforma:"Revolut",investido:tot,quantidade:null,nota:"Trocos de "+mesLabel(m)+" ("+tro.length+" compras)",origem:"extrato"});}
       done++;msg.textContent="A importar… "+done+"/"+ms.length+" meses";}
+    await guardarPoupancaExtrato(conta,r);
     msg.textContent="Importado: "+nMov+" movimentos em "+ms.length+" "+(ms.length>1?"meses":"mês")+" na conta "+CONTA_LABEL[conta]+(troTot?", e "+eur.format(troTot)+" de Trocos em BTC.":".");
     st.conta=conta;for(const x of $("conta-pills").querySelectorAll("button"))x.setAttribute("aria-pressed",String(x.dataset.c===conta));
     st.mes=ms[ms.length-1];st.ano=st.mes.slice(0,4);st.pending=null;$("imp-preview").hidden=true;$("imp-file").value="";
@@ -890,6 +891,23 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-cofr
   const L=cofresLista();const x=L.find(y=>y.uid===b.dataset.cofre);const n=window.prompt("Nome deste cofre ("+eur.format(x.saldo)+"):",x.semNome?"":x.nome);if(n==null)return;
   const nomes={...((st.cofresNomes&&st.cofresNomes.nomes)||{})};if(n.trim())nomes[x.uid]=n.trim().slice(0,40);else delete nomes[x.uid];
   try{await st.db.collection("config").doc("cofres").set({nomes});}catch(err){showErr(err,"cofres");}});
+/* ========== POUPANÇA DE ACESSO IMEDIATO: saldo do último extrato + transferências sincronizadas depois dele ==========
+   config/poupancas = {<conta>: {saldo, data, fonte}} — atualizado ao importar um extrato EUR da Revolut (na app ou por email). */
+const RE_PAI=/Poupan[çc]a de Acesso Imediato/i;
+async function guardarPoupancaExtrato(conta,r){const p=r&&r.summary&&r.summary["Poupança de Acesso Imediato"];if(!p||p.final==null)return;
+  const data=r.fim||r.rows.map(x=>x.data).sort().pop();if(!data)return;const ant=st.poupancas&&st.poupancas[conta];if(ant&&ant.data>data)return;
+  try{await st.db.collection("config").doc("poupancas").set({...(st.poupancas||{}),[conta]:{saldo:p.final,data,fonte:"extrato"}});}catch(e){showErr(e,"poupança");}}
+function saldoPoupanca(conta){const b=st.poupancas&&st.poupancas[conta];if(!b)return null;let s=+b.saldo||0,n=0;
+  for(const d of Object.values(st.meses))if(d.conta===conta)for(const x of d.movimentos||[])if(!x.excluido&&x.data>b.data&&RE_PAI.test(x.descricao+" "+(x.detalhe||""))){s-=x.valor;n++;}
+  return {saldo:r2(s),base:b,n};}
+function poupancasLista(){return ["conjunta","pessoal"].map(c=>({conta:c,...(saldoPoupanca(c)||{})})).filter(x=>x.base&&(x.saldo>0.004||x.n));}
+function renderPoupancas(){const blk=$("pai-block");if(!blk)return;const L=poupancasLista();blk.hidden=!L.length;if(!L.length)return;
+  $("pai-list").innerHTML=L.map(x=>'<div class="rule"><span>Conta '+CONTA_LABEL[x.conta].toLowerCase()+'</span><span class="num">'+eur.format(x.saldo)+'</span></div>').join("");
+  $("pai-total").textContent=eur.format(L.reduce((a,x)=>a+x.saldo,0));
+  $("pai-nota").textContent="Valor exato no extrato de "+L.map(x=>fmtDs(x.base.data)).join(" / ")+"; depois disso soma as transferências sincronizadas (os juros só entram com o próximo extrato).";
+  scheduleM&&scheduleM();}
+function poupancasMobile(){const L=poupancasLista();if(!L.length)return "";
+  return '<div class="m-card"><div class="eyebrow">Poupança de Acesso Imediato</div><div class="m-mid">'+eur0.format(L.reduce((a,x)=>a+x.saldo,0))+'</div>'+(L.length>1?L.map(x=>'<div class="m-row"><span>Conta '+CONTA_LABEL[x.conta].toLowerCase()+'</span><span class="num">'+eur0.format(x.saldo)+'</span></div>').join(""):'<div class="m-sub">conta '+CONTA_LABEL[L[0].conta].toLowerCase()+' · sem juros desde o extrato de '+fmtDs(L[0].base.data)+'</div>')+'</div>';}
 /* ================= RENTABILIDADE ================= */
 st.hist=null;
 const GROUPS=[["BTC","Bitcoin","Cripto","BTC"],["ADA","Cardano","Cripto","ADA"],["ETF Core","Plano Core","ETF Core",null],["ETF Agressivo","Plano Agressivo","ETF Agressivo",null],["XTB Manual","XTB carteira manual","XTB Manual",null]];
@@ -1137,7 +1155,7 @@ function renderMobile(){
       const g=goalFor(st.m.scope);const rate=s.entradas>0?s.poupado/s.entradas:null;
       h+='<div class="m-grid"><div class="m-card"><div class="eyebrow">Poupança</div><div class="m-mid">'+eur0.format(s.poupado)+'</div><div class="m-sub">'+(g.mensal?"objetivo "+eur0.format(g.mensal):"taxa "+pctOrDash(rate))+'</div>'+(g.mensal?mBar(s.poupado,g.mensal,s.poupado>=g.mensal?"var(--pos)":"var(--warn)"):"")+'</div>'+
         '<div class="m-card"><div class="eyebrow">Entradas</div><div class="m-mid">'+eur0.format(s.entradas)+'</div><div class="m-sub">investido '+eur0.format(s.investido)+'</div></div></div>';
-      h+=cofresMobile();
+      h+=cofresMobile()+poupancasMobile();
       const pts=mInvestSeries();const lp=pts[pts.length-1],pp=pts[pts.length-2];const dv=lp&&pp?(lp.v-pp.v)-(lp.a-pp.a):null;
       h+='<button type="button" class="m-card m-link" data-tab="investimentos"><div class="eyebrow">Investimentos</div><div class="m-mid">'+esc($("s-valor").textContent)+'</div><div class="m-sub '+(dv==null?"":cls(dv))+'">'+(dv==null?"":(dv>=0?"+":"−")+eur0.format(Math.abs(dv))+" no último mês, sem contar aportes")+'</div></button>';
       const top=Object.entries(s.cats).filter(([,v])=>v>0.5).sort((a,b)=>b[1]-a[1]).slice(0,5);
@@ -1274,7 +1292,7 @@ $("l-data").value=todayStr();$("r-data").value=todayStr();route();render();
   db.collection("lotes").onSnapshot(safeCb(s=>{st.lotes=s.docs.map(d=>({id:d.id,...d.data()}));done("l",s);renderInv();}),onErr);
   db.collection("ativos").onSnapshot(safeCb(s=>{const m={};for(const d of s.docs)m[d.id]=comEstimativa(d.data());st.ativos=m;pprGroups();done("a",s);renderInv();$("fe-rows").dataset.m="";renderFecho();}),onErr);
   db.collection("realizados").onSnapshot(safeCb(s=>{st.real=s.docs.map(d=>({id:d.id,...d.data()}));done("r",s);renderInv();}),onErr);
-  db.collection("meses").onSnapshot(safeCb(s=>{const m={};for(const d of s.docs)m[d.id]=d.data();st.meses=m;done("m",s);renderFin();renderOrc();renderPlano();renderPoup();}),onErr);
+  db.collection("meses").onSnapshot(safeCb(s=>{const m={};for(const d of s.docs)m[d.id]=d.data();st.meses=m;done("m",s);renderPoupancas();renderFin();renderOrc();renderPlano();renderPoup();}),onErr);
   db.doc("config/categorias").onSnapshot(safeCb(d=>{setCustomCats(d.exists?d.data().lista:[]);done("k",d);renderCats();refreshCatSelects();renderFin();renderOrc();renderPlano();renderPoup();}),onErr);
   db.collection("planos").onSnapshot(safeCb(s=>{const m={};for(const d of s.docs)m[d.id]=d.data();st.planos=m;done("p",s);renderPlano();renderOrc();}),onErr);
   db.doc("config/orcamentos").onSnapshot(safeCb(d=>{st.orc=d.exists?d.data():null;done("o",d);renderOrc();}),onErr);
@@ -1282,6 +1300,7 @@ $("l-data").value=todayStr();$("r-data").value=todayStr();route();render();
   db.doc("historico/carteira").onSnapshot(safeCb(d=>{st.hist=d.exists?d.data():null;done("h",d);renderRent();}),onErr);
   db.doc("sync/investimentos").onSnapshot(safeCb(d=>{st.auto=d.exists?d.data():null;renderAuto();}),()=>{});
   db.doc("sync/cofres").onSnapshot(safeCb(d=>{st.cofres=d.exists?d.data():null;renderCofres();}),()=>{});
+  db.doc("config/poupancas").onSnapshot(safeCb(d=>{st.poupancas=d.exists?d.data():null;renderPoupancas();}),()=>{});
   db.doc("config/cofres").onSnapshot(safeCb(d=>{st.cofresNomes=d.exists?d.data():null;renderCofres();}),()=>{});
   db.doc("sync/revolut").onSnapshot(safeCb(d=>{st.sync=d.exists?d.data():null;renderSync();}),()=>{});
   db.doc("config/regras").onSnapshot(safeCb(d=>{st.regras=d.exists&&Array.isArray(d.data().lista)?d.data().lista:null;done("c",d);renderFin();}),onErr);

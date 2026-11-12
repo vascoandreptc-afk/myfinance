@@ -93,3 +93,8 @@ test("XTB: confirmação das ordens executadas (PDF do email)", async () => {
   await I2.importXTB(await I2.parseXTB(F.XLSX, F.xtbXLSX({ gerado: "2026-11-20 10:00:00" })), msg());
   assert.ok(!db.store.lotes["xtbconf-2900000001-EUNA_DE"], "confirmação substituída pelo Excel");
 });
+
+test("Revolut EUR: data de fim do período", async () => {
+  const r = await parseRevolutPDF(F.pdfjs(), buf(await F.revolutPDF()));
+  assert.equal(r.fim, "2026-10-31");
+});

@@ -37,6 +37,7 @@ function revolutPDF() {
   const L = []; let top = 200; const add = (cols) => { for (const [x, t] of cols) L.push({ x, top, t }); top += 16; };
   add([[60, "Teste Exemplo"]]);
   add([[60, "Conta (Conta Corrente) 1 000,00€ 62,34€ 50,00€ 987,66€"]]);
+  add([[60, "Poupança de Acesso Imediato 0,00€ 0,07€ 312,45€ 312,38€"]]);
   add([[60, "Operações da conta de 1 de outubro de 2026 a 31 de outubro de 2026"]]);
   add([[60, "Data"], [240, "Descrição"], [470, "Dinheiro retirado"], [590, "Dinheiro recebido"], [700, "Saldo"]]);
   add([[60, "01/10/2026 01/10/2026"], [240, "Continente"], [470, "12,34 €"], [700, "987,66 €"]]);
