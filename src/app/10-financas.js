@@ -11,11 +11,12 @@ function monthStats(m){
   const doc=mdoc(m);const rows=doc?doc.movimentos||[]:[];
   const s={entradas:0,despesas:0,poupanca:0,investimento:0,reserva:0,cats:{},n:rows.length,excl:0,doc};
   for(const r of rows){if(r.excluido){s.excl++;continue;}const k=kindOf(r.categoria);
-    if(k==="entrada")s.entradas+=r.valor;
+    if(k==="entrada"){if(mesDaEntrada(r,st.conta)===m)s.entradas+=r.valor;}
     else if(k==="poupanca")s.poupanca-=r.valor;
     else if(k==="investimento")s.investimento-=r.valor;
     else if(k==="reserva")s.reserva-=r.valor;
     else if(k==="despesa"){s.despesas-=r.valor;s.cats[r.categoria]=(s.cats[r.categoria]||0)-r.valor;}}
+  for(const r of entradasVindas(st.conta,m))s.entradas+=r.valor;
   return s;
 }
 function aggStats(ks){if(!ks.length)return null;const a={entradas:0,despesas:0,poupanca:0,investimento:0,reserva:0,cats:{},n:0,excl:0,docs:[]};
@@ -145,7 +146,11 @@ function renderMov(){
   for(const r of sorted.slice(0,LIMIT)){const tr=document.createElement("tr");
     const det=r.detalhe&&!/^Para: VIA VERDE$|^Purchase of BTC$/.test(r.detalhe)?'<div class="note">'+esc(r.detalhe.slice(0,90))+'</div>':'';
     if(r.excluido)tr.className="excl";
-    tr.innerHTML='<td class="num">'+fmtDs(r.data)+'</td><td class="wrapcell">'+esc(r.descricao)+det+(r.excluido?' <span class="chip miss">excluído da análise</span>':'')+'</td>'+
+    tr.innerHTML='<td class="num">'+fmtDs(r.data)+'</td><td class="wrapcell">'+esc(r.descricao)+det+(r.excluido?' <span class="chip miss">excluído da análise</span>':'')+(()=>{if(r.valor<=0||kindOf(r.categoria)!=="entrada")return "";const em=mesDaEntrada(r,st.conta),proprio=r.data.slice(0,7);
+      if(em!==proprio)return ' <button type="button" class="chip wait" data-mref="'+esc(r._m+"|"+r.id+"|"+proprio)+'" title="Clica para contar no mês em que entrou">conta para '+MES[+em.slice(5)-1]+'</button>';
+      if(r.mesRef)return ' <button type="button" class="chip na" data-mref="'+esc(r._m+"|"+r.id+"|")+'" title="Clica para voltar à regra automática">neste mês (à mão)</button>';
+      if(+r.data.slice(8,10)<15)return "";
+      return ' <button type="button" class="btn-link note" data-mref="'+esc(r._m+"|"+r.id+"|"+mesSeguinte(proprio))+'">contar no mês seguinte</button>';})()+'</td>'+
       '<td><select aria-label="Categoria de '+esc(r.descricao)+'" '+(st.readonly?"disabled":"")+'>'+catOptions(r.categoria)+'</select>'+(r.manual?' <span class="chip na" title="Alterada à mão">manual</span>':'')+'<span class="applyrule"></span></td>'+
       '<td class="r num '+(r.valor>0?"pos":"")+'">'+signed(r.valor)+'</td>'+
       '<td class="r">'+(st.readonly?'':'<button type="button" class="btn-link" data-x>'+(r.excluido?"Incluir":"Excluir")+'</button>')+'</td>';
@@ -157,6 +162,10 @@ function renderMov(){
   $("mov-empty").hidden=sorted.length>0;
   $("mov-count").textContent=sorted.length?(sorted.length+" movimento"+(sorted.length>1?"s":"")+(sorted.length>LIMIT?" (a mostrar "+LIMIT+")":"")):"";
 }
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-mref]");if(!b||st.readonly)return;const [m,id,ref]=b.dataset.mref.split("|");
+  const did=st.conta+"-"+m;const doc=st.meses[did];if(!doc)return;
+  const movs=doc.movimentos.map(r=>{if(r.id!==id)return r;const x={...r};if(ref)x.mesRef=ref;else delete x.mesRef;return x;});
+  try{await saveMonth(did,movs);setStatus("Mês da entrada guardado.");}catch(err){setStatus("Não foi possível guardar.");}});
 async function saveMonth(id,movs){const doc=st.meses[id];await st.db.collection("meses").doc(id).set({...doc,movimentos:movs});}
 async function changeCat(m,id,cat,slot,descricao){
   const did=st.conta+"-"+m;const doc=st.meses[did];const movs=doc.movimentos.map(r=>r.id===id?{...r,categoria:cat,manual:true}:r);

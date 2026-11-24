@@ -22,6 +22,7 @@ $("l-data").value=todayStr();$("r-data").value=todayStr();route();render();
   db.doc("historico/carteira").onSnapshot(safeCb(d=>{st.hist=d.exists?d.data():null;done("h",d);renderRent();}),onErr);
   db.doc("sync/investimentos").onSnapshot(safeCb(d=>{st.auto=d.exists?d.data():null;renderAuto();}),()=>{});
   db.doc("sync/cofres").onSnapshot(safeCb(d=>{st.cofres=d.exists?d.data():null;renderCofres();}),()=>{});
+  db.doc("config/entradas").onSnapshot(safeCb(d=>{st.entCfg=d.exists?d.data():null;renderEntCfg();render();scheduleM();}),()=>{});
   db.doc("config/poupancas").onSnapshot(safeCb(d=>{st.poupancas=d.exists?d.data():null;renderPoupancas();}),()=>{});
   db.doc("config/cofres").onSnapshot(safeCb(d=>{st.cofresNomes=d.exists?d.data():null;renderCofres();}),()=>{});
   db.doc("sync/revolut").onSnapshot(safeCb(d=>{st.sync=d.exists?d.data():null;renderSync();}),()=>{});

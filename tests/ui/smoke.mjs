@@ -60,6 +60,19 @@ try {
   }
   ok(/OPT-PPR|PPR/.test(await page.textContent("#v-investimentos")), "PPR aparece nos investimentos");
 
+  console.log("Entradas do fim do mês");
+  await page.evaluate(() => firebase.firestore().collection("meses").doc("pessoal-2026-09").set({ conta: "pessoal", mes: "2026-09", movimentos: [
+    { id: "s1", data: "2026-09-28", valor: 1000, categoria: "Entradas", descricao: "Carregamento com Apple Pay", detalhe: "" },
+    { id: "s2", data: "2026-09-10", valor: -20, categoria: "Supermercado", descricao: "Continente", detalhe: "" }] }));
+  await page.evaluate(() => location.hash = "financas"); await page.waitForTimeout(300);
+  await page.click('#conta-pills button[data-c="pessoal"]'); await page.waitForTimeout(200);
+  await page.selectOption("#a-sel", "2026"); await page.selectOption("#m-sel", "2026-10"); await page.waitForTimeout(300);
+  ok(/1050,00/.test(await page.textContent("#f-in")), "salário de 28/09 conta como entrada de outubro (" + (await page.textContent("#f-in")) + ")");
+  await page.selectOption("#m-sel", "2026-09"); await page.waitForTimeout(300);
+  ok(/0,00/.test(await page.textContent("#f-in")) && /conta para outubro/.test(await page.textContent("#t-mov")), "setembro sem essa entrada e com a etiqueta na tabela");
+  await page.click("#t-mov [data-mref]"); await page.waitForTimeout(400);
+  ok(/1000,00/.test(await page.textContent("#f-in")), "trocar à mão: volta a contar em setembro");
+
   console.log("Tarefas automáticas");
   await page.evaluate(() => { const f = firebase.firestore();
     f.collection("ativos").doc("core~SXR8.DE").set({ ticker: "SXR8.DE", categoria: "ETF Core", valorAtual: 900, atualizado: "2026-11-03", valorEstimado: 955.5, estimadoEm: "2099-01-01" });

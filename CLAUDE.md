@@ -29,6 +29,9 @@ https://vascoandreptc-afk.github.io/myfinance/ · Português de Portugal em toda
 - Cripto: isenção de IRS após 365 dias (contagem por lote). PPR Optimize: entregas = diferença do custo total mês a mês
   (funciona com extratos importados em qualquer ordem — houve um erro de −40% por causa disto; há teste).
 - Rentabilidade mensal pelo método de Dietz, acumulada encadeada.
+- **Entradas do fim do mês contam no mês seguinte** (o salário é carregado na Revolut por Apple Pay a ~28 e gasto no mês
+  seguinte): `mesDaEntrada()` em `src/app/25-meses.js`, configurável em `config/entradas {ativo, dia (25), contas}`;
+  por movimento, `mesRef` fixa o mês à mão. Só afeta entradas (despesas ficam no mês da data).
 
 ## Fluxo de trabalho
 1. Editar em `src/` (ou `index.html`/`shell.js`), correr `node build.js`.

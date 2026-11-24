@@ -392,6 +392,13 @@ body.phone:not(.m-mode) .m-back{display:block}
           <p class="note" hidden>Dica: exporta os extratos nos primeiros 5 dias do mês. Os valores da XTB e da cripto ficam registados como o fecho do mês anterior.</p>
         </section>
         <section class="block">
+          <h2>Entradas do fim do mês</h2>
+          <label class="chk"><input type="checkbox" id="ent-ativo"> Contar no mês seguinte as entradas a partir do dia <input id="ent-dia" type="number" min="15" max="31" style="width:4.2em;display:inline-block"></label>
+          <p class="note">Ex.: o salário que carregas a 28 de outubro conta como entrada de novembro, o mês em que o gastas. Aplica-se às duas contas. Na tabela de movimentos podes mudar uma entrada à mão ("conta para…").</p>
+          <p class="formmsg" id="ent-msg" role="status"></p>
+        </section>
+
+        <section class="block">
           <h2>Cópia de segurança</h2>
           <div class="bk-row"><button class="btn-ghost" type="button" id="bk-export">Descarregar cópia</button><label class="btn-ghost" for="bk-file">Importar cópia…</label><input id="bk-file" type="file" accept="application/json,.json" hidden></div>
           <div class="formmsg" id="bk-msg" role="status"></div>
@@ -684,8 +691,8 @@ body.phone:not(.m-mode) .m-back{display:block}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js?v=23"></script>
-<script src="shell.js?v=23"></script>
-<script src="app.js?v=23"></script>
+<script src="firebase-config.js?v=24"></script>
+<script src="shell.js?v=24"></script>
+<script src="app.js?v=24"></script>
 </body>
 </html>
